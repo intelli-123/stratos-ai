@@ -58,7 +58,7 @@ export function liveStatus(a: Agent): "online" | "offline" | "degraded" {
 // Onboarding via the @lnt/stratos-sdk package: install, set env, run with
 // `--import`. No per-agent file, and the URL/token live in env so they can
 // change without code edits. Each step is rendered with its own copy button.
-export const SDK_PACKAGE = "@lnt/stratos-sdk";
+export const SDK_PACKAGE = "@intelli-1113/stratos-sdk";
 
 export interface EnrollStep { title: string; lang: "bash" | "env" | "js"; code: string; }
 

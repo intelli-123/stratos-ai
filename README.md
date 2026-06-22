@@ -1,34 +1,77 @@
 # Stratos AI — Agent Observability
 
-A Next.js + Supabase observability platform for AI agents (local / MCP / remote): liveness,
-tokens & cost per agent and per query, tools per agent, filters, and zero-code
-onboarding via OpenLLMetry/OpenTelemetry. *(Name centralized in `lib/app.ts` —
-rename `APP_NAME` to rebrand everywhere.)*
+A Next.js + Supabase observability platform for AI agents (local / MCP / remote).
+Track **liveness**, **tokens & cost** (per agent and per query), **prompts**,
+**tools**, and per-agent **budgets** — with one-line agent onboarding via
+[OpenLLMetry](https://traceloop.com/docs/openllmetry) / OpenTelemetry.
+
+> Branding is centralized in `lib/app.ts` (`APP_NAME`) — rename once to rebrand everywhere.
+
+## Stack
+- **Next.js 14** (pages router) + React 18 + TypeScript
+- **Supabase** (Postgres) for agents, per-query telemetry and enrollment tokens
+- **OpenLLMetry / OTLP-JSON** ingest, surfaced through [`@intelli-1113/stratos-sdk`](https://www.npmjs.com/package/@intelli-1113/stratos-sdk)
 
 ## Setup
 ```bash
 npm install
 ```
 1. In the **Supabase SQL editor**, run `supabase/schema.sql` (creates `agents`,
-   `agent_queries`, `enroll_tokens` + demo RLS).
-2. `.env.local` already has your project URL + publishable key. For production,
-   add a server-only `SUPABASE_SERVICE_ROLE_KEY` (writes/ingest bypass RLS).
+   `agent_queries`, `enroll_tokens` + demo RLS), then `supabase/migration-2026-06-prompts.sql`
+   (adds `prompt`/`response`/`model` to `agent_queries`).
+2. Create `.env.local` from `.env.example` with your Supabase URL + publishable key.
+   For production add a server-only `SUPABASE_SERVICE_ROLE_KEY` (writes/ingest bypass RLS).
 3. `npm run dev` → http://localhost:4000
 
+> Behind a TLS-inspection proxy? Drop the corporate root CA at `certs/corporate-ca.pem`
+> — `scripts/run-next.js` auto-trusts it via `NODE_EXTRA_CA_CERTS` (no disabling of TLS).
+
+## Onboarding an agent
+1. **Add agent** in the UI → Stratos mints an enrollment token + connect link.
+   The agent stays out of the fleet until it reports in.
+2. In the agent, install the SDK and set env:
+   ```bash
+   npm i @intelli-1113/stratos-sdk
+   # .env
+   STRATOS_TOKEN=<token>           # from Add agent
+   STRATOS_URL=http://localhost:4000
+   STRATOS_APP_NAME=my-agent
+   ```
+3. Run with telemetry — zero code changes:
+   ```bash
+   node --import @intelli-1113/stratos-sdk/register server.js
+   ```
+   …or add `import "@intelli-1113/stratos-sdk/register";` as the first line of your entrypoint.
+
+On its first trace the agent flips to **Connected/online** with live metrics, and
+auto-shows **offline** when it stops reporting. The URL/token live in env, so they
+change without code edits.
+
 ## How it works
-- **Agents page** reads live from Supabase (`/api/agents`) — filter ALL/LOCAL/MCP/REMOTE, search.
-- **Add Agent** creates the agent + an **enrollment token** and shows an onboarding
-  link (`/onboard/<token>`) + an OpenLLMetry install snippet to share. No static data.
-- **Ingest:** the agent runs OpenLLMetry pointed at `POST /api/ingest`
-  (`OTEL_EXPORTER_OTLP_PROTOCOL=http/json`, header `x-aether-token`). `/api/ingest`
-  maps `gen_ai.*`/`llm.*` spans → per-query rows + rolls up agent tokens/cost/queries/tools
-  and flips the agent **online** (liveness from `last_seen`).
-- **Mission Control** shows live KPIs (online, tokens, spend, queries).
-- **Cost budget** per agent is editable (Edit → Cost budget) and stored in Supabase.
+- **Mission Control** — live KPIs (agents online, tokens, spend, queries).
+- **Agents** — grid filtered by type (local/mcp/remote) **and** status (online/offline),
+  plus search. Click an agent for a **detail popup**: Today / 7d / 30d window, prompt +
+  cost table, cost sort (high/low), and **CSV export**.
+- **Onboarding** — pending vs connected agents, copy-able SDK steps, and delete.
+- **Ingest** (`POST /api/ingest`) — accepts OTLP-JSON, header `x-stratos-token`
+  (legacy `x-aether-token` still honored). Maps `gen_ai.*`/`llm.*` spans → per-query
+  rows (tokens, cost, prompt, response, latency) and rolls up agent totals + liveness.
+- **Heartbeat** (`POST /api/heartbeat`) — keeps an agent online while its process runs.
+- **Cost budget** per agent is editable and stored in Supabase.
+- **Theme** — day/night toggle (persisted), applied across all pages and popups.
+
+## Project layout
+```
+pages/            UI + API routes (agents, ingest, heartbeat, enroll, health)
+components/        Layout, AgentCard, modals, Snippet, ThemeToggle
+lib/app.ts         branding, types, liveStatus, SDK snippet builder
+supabase/          schema.sql + migrations
+scripts/run-next.js  dev/build launcher (corporate-CA aware)
+```
 
 ## Status
-- ✅ Stack, theme, full nav scaffold, Agents page, Add-Agent + enrollment, OTLP ingest, schema.
-- ⏳ Stubbed for next: Traces, Token Economy, MCP Proxy, Incidents (agent-down **email** — provider TBD), Ask, Users & Access.
-- The OpenLLMetry/SDK refactor of the old tower is intentionally **parked**.
+- ✅ Mission Control, Agents (+ detail popup, filters), Onboarding (SDK + delete),
+  OTLP ingest + heartbeat, prompt/cost capture, day/night theme, schema + migration.
+- ⏳ Stubbed for next: Traces, Token Economy, MCP Proxy, Incidents (agent-down **email**), Ask, Users & Access.
 
-Built by L&T Technology Services · on OpenLLMetry / OpenTelemetry.
+Built by **L&T Technology Services** · on OpenLLMetry / OpenTelemetry.
