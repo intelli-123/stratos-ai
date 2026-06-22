@@ -80,7 +80,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           const { prompt, response } = isLlm ? extractContent(a) : { prompt: "", response: "" };
           bucket.tokens += tokens; bucket.cost += cost; bucket.queries += 1;
           bucket.rows.push({
-            task: isTool ? `tool:${toolName}` : (sp.name || op || "llm"),
+            task: isTool ? (toolName ? `tool:${toolName}` : (sp.name || "tool")) : (sp.name || op || "llm"),
             prompt: prompt || null, response: response || null, model: model || null,
             tokens, cost: +cost.toFixed(6), latency_ms: latency,
           });
@@ -120,7 +120,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }).eq("id", agent.id);
 
       if (b.rows.length) {
-        await supabaseAdmin.from("agent_queries").insert(b.rows.map((r) => ({ ...r, agent_id: agent.id })));
+        const rows = b.rows.map((r) => ({ ...r, agent_id: agent.id }));
+        const { error } = await supabaseAdmin.from("agent_queries").insert(rows);
+        if (error) {
+          // Most likely the prompt/response/model columns aren't migrated yet.
+          // Fall back to the base columns so per-query rows still record.
+          const base = rows.map(({ prompt, response, model, ...rest }) => rest);
+          const retry = await supabaseAdmin.from("agent_queries").insert(base);
+          if (retry.error) console.warn("[ingest] agent_queries insert failed:", retry.error.message);
+          else console.warn("[ingest] inserted without prompt/response/model — run supabase/migration-2026-06-prompts.sql for full capture");
+        }
       }
     }
     return res.status(200).json({ partialSuccess: {} });
