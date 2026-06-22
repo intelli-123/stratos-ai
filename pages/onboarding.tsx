@@ -1,15 +1,15 @@
 import { useEffect, useState } from "react";
-import { Agent, APP_NAME, LIVENESS_MS } from "@/lib/app";
+import { Agent, APP_NAME, LIVENESS_MS, SDK_PACKAGE } from "@/lib/app";
 import AddAgentModal from "@/components/AddAgentModal";
 
-// Onboarding hub: explains zero-code enrollment, lists agents AWAITING their
-// first telemetry separately from CONNECTED ones. "Add agent" mints a
-// token + install snippet; the agent only joins the fleet once it reports in.
+// Onboarding hub: explains SDK enrollment, lists agents AWAITING their first
+// telemetry separately from CONNECTED ones, and allows deleting either.
 export default function Onboarding() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [pending, setPending] = useState<Agent[]>([]);
   const [err, setErr] = useState("");
   const [adding, setAdding] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
 
   async function load() {
     try {
@@ -23,15 +23,32 @@ export default function Onboarding() {
   }
   useEffect(() => { load(); const t = setInterval(load, 10000); return () => clearInterval(t); }, []);
 
+  async function del(a: Agent) {
+    if (!confirm(`Delete agent "${a.name}"? This removes the agent, its enrollment token and all recorded queries. This cannot be undone.`)) return;
+    setBusy(a.id);
+    try {
+      const r = await fetch(`/api/agents/${a.id}`, { method: "DELETE" });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || "Delete failed");
+      await load();
+    } catch (e: any) { setErr(e.message); } finally { setBusy(null); }
+  }
+
   const liveLabel = (a: Agent) =>
     a.last_seen && Date.now() - new Date(a.last_seen).getTime() < LIVENESS_MS ? "online" : "offline";
+
+  const DeleteBtn = ({ a }: { a: Agent }) => (
+    <button className="btn btn-danger" disabled={busy === a.id} onClick={() => del(a)}>
+      {busy === a.id ? "Deleting…" : "Delete"}
+    </button>
+  );
 
   return (
     <>
       <div className="toolbar">
         <div>
           <h1 className="page-title">Onboarding</h1>
-          <div className="page-sub">Connect any agent to {APP_NAME} with OpenLLMetry — no code changes beyond initialization. An agent joins the fleet only after it reports its first telemetry.</div>
+          <div className="page-sub">Connect any agent to {APP_NAME} with the <code>{SDK_PACKAGE}</code> SDK. An agent joins the fleet only after it reports its first telemetry.</div>
         </div>
         <div className="spacer" />
         <button className="btn btn-primary" onClick={() => setAdding(true)}>+ Add agent</button>
@@ -42,9 +59,9 @@ export default function Onboarding() {
       <div className="card" style={{ marginBottom: 16 }}>
         <h3 style={{ marginTop: 0 }}>How it works</h3>
         <ol className="muted" style={{ lineHeight: 1.9, margin: 0, paddingLeft: 18 }}>
-          <li><b style={{ color: "var(--text)" }}>Add agent</b> → {APP_NAME} mints an enrollment token and a connect link. The agent is <b>not</b> shown in the fleet yet.</li>
-          <li>Share the link with the agent owner. They install <code>@traceloop/node-server-sdk</code> and initialize it with the token.</li>
-          <li>On its first reported trace the agent moves to <b style={{ color: "var(--green)" }}>Connected</b> with live tokens, cost and tools — and goes <b>offline</b> automatically if it stops reporting.</li>
+          <li><b style={{ color: "var(--text)" }}>Add agent</b> → {APP_NAME} mints an enrollment token + connect link. The agent is <b>not</b> shown in the fleet yet.</li>
+          <li>The agent owner installs <code>{SDK_PACKAGE}</code>, sets <code>STRATOS_TOKEN</code> in their env, and runs with <code>--import {SDK_PACKAGE}/register</code>.</li>
+          <li>On its first reported trace the agent moves to <b style={{ color: "var(--green)" }}>Connected</b> with live tokens, cost, prompts and tools — and goes <b>offline</b> automatically if it stops reporting.</li>
         </ol>
       </div>
 
@@ -60,6 +77,7 @@ export default function Onboarding() {
                 <th style={{ padding: "6px 8px" }}>Type</th>
                 <th style={{ padding: "6px 8px" }}>Budget</th>
                 <th style={{ padding: "6px 8px" }}>Created</th>
+                <th style={{ padding: "6px 8px", textAlign: "right" }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -69,6 +87,7 @@ export default function Onboarding() {
                   <td style={{ padding: "8px" }}><span className="badge">{a.type}</span></td>
                   <td style={{ padding: "8px" }} className="muted">{a.cost_budget != null ? `$${a.cost_budget}` : "—"}</td>
                   <td style={{ padding: "8px" }} className="muted">{a.created_at ? new Date(a.created_at).toLocaleString() : "—"}</td>
+                  <td style={{ padding: "8px", textAlign: "right" }}><DeleteBtn a={a} /></td>
                 </tr>
               ))}
             </tbody>
@@ -88,6 +107,7 @@ export default function Onboarding() {
                 <th style={{ padding: "6px 8px" }}>Type</th>
                 <th style={{ padding: "6px 8px" }}>Status</th>
                 <th style={{ padding: "6px 8px" }}>Last seen</th>
+                <th style={{ padding: "6px 8px", textAlign: "right" }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -101,6 +121,7 @@ export default function Onboarding() {
                       <span className="status"><span className={"dot " + (live === "online" ? "dot-green" : "dot-red")} />{live}</span>
                     </td>
                     <td style={{ padding: "8px" }} className="muted">{a.last_seen ? new Date(a.last_seen).toLocaleString() : "—"}</td>
+                    <td style={{ padding: "8px", textAlign: "right" }}><DeleteBtn a={a} /></td>
                   </tr>
                 );
               })}

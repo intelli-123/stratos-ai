@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import crypto from "crypto";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { buildEnrollSnippet } from "@/lib/app";
+import { buildEnrollSnippet, buildEnrollSteps } from "@/lib/app";
 
 const BASE = process.env.NEXT_PUBLIC_APP_BASE_URL || "http://localhost:4000";
 
@@ -36,9 +36,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (tErr) { console.error("[api/agents token]", tErr); return res.status(500).json({ error: tErr.message, code: tErr.code }); }
 
     const enroll_url = `${BASE}/onboard/${token}`;
-    const snippet = buildEnrollSnippet(agent.name, BASE, token);
+    const steps = buildEnrollSteps(agent.name, BASE, token);
 
-    return res.status(201).json({ agent, enroll: { token, enroll_url, snippet } });
+    return res.status(201).json({ agent, enroll: { token, enroll_url, steps, snippet: buildEnrollSnippet(agent.name, BASE, token) } });
   }
 
   res.setHeader("Allow", "GET, POST");

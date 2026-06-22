@@ -49,7 +49,7 @@ const estCost = (model: string | undefined, i: number, o: number) => {
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") { res.setHeader("Allow", "POST"); return res.status(405).end(); }
   try {
-    const token = (req.headers["x-aether-token"] as string) || "";
+    const token = (req.headers["x-stratos-token"] as string) || (req.headers["x-aether-token"] as string) || "";
     const ct = String(req.headers["content-type"] || "");
     console.log(`[ingest] hit ct=${ct} token=${token ? token.slice(0, 6) + "…" : "none"} spans=${(req.body?.resourceSpans || req.body?.resource_spans || []).length}`);
     const body = req.body || {};

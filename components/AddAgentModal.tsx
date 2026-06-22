@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Agent, AgentType, APP_NAME } from "@/lib/app";
+import { Agent, AgentType, APP_NAME, EnrollStep } from "@/lib/app";
+import Snippet from "@/components/Snippet";
 
-type Enroll = { token: string; enroll_url: string; snippet: string };
+type Enroll = { token: string; enroll_url: string; steps: EnrollStep[]; snippet: string };
 
 export default function AddAgentModal(
   { mode, agent, onClose, onSaved }:
@@ -64,9 +65,9 @@ export default function AddAgentModal(
         ) : (
           <>
             <h3>Connect “{f.name}”</h3>
-            <p className="muted">Share this with the agent owner — installing it streams the agent’s telemetry into {APP_NAME}. No code changes beyond initialization.</p>
-            <div className="field"><label>Onboarding link</label><div className="snippet">{enroll.enroll_url}</div></div>
-            <div className="field"><label>Install (OpenLLMetry → {APP_NAME})</label><div className="snippet">{enroll.snippet}</div></div>
+            <p className="muted">Share these steps with the agent owner — installing the SDK streams telemetry into {APP_NAME}. The agent appears once it reports in.</p>
+            <Snippet title="Onboarding link" code={enroll.enroll_url} />
+            {enroll.steps.map((s, i) => <Snippet key={i} title={s.title} code={s.code} />)}
             <div className="row"><div className="spacer" /><button className="btn btn-primary" onClick={() => { onSaved(); onClose(); }}>Done</button></div>
           </>
         )}

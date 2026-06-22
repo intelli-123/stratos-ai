@@ -110,6 +110,9 @@ a { color: inherit; text-decoration: none; }
 .btn:hover { border-color: var(--accent); }
 .btn-primary { background: linear-gradient(135deg, var(--accent), var(--accent2)); border: none; color: #04121a; font-weight: 600; }
 .btn-primary:hover { filter: brightness(1.07); }
+.btn-danger { color: var(--red); border-color: rgba(248,113,113,0.4); padding: 6px 12px; }
+.btn-danger:hover { border-color: var(--red); background: rgba(248,113,113,0.10); }
+.btn-danger:disabled { opacity: .6; cursor: default; }
 
 /* ── Content ───────────────────────────────────────────── */
 .content { padding: 26px 28px; }
@@ -153,7 +156,7 @@ a { color: inherit; text-decoration: none; }
 
 /* ── Modal ─────────────────────────────────────────────── */
 .overlay { position: fixed; inset: 0; background: var(--overlay); display: grid; place-items: center; z-index: 50; padding: 20px; }
-.modal { width: 100%; max-width: 520px; background: var(--panel); border: 1px solid var(--border2); border-radius: 16px; padding: 22px; }
+.modal { width: 100%; max-width: 520px; background: var(--panel); border: 1px solid var(--border2); border-radius: 16px; padding: 22px; max-height: 90vh; overflow: auto; }
 .modal h3 { margin: 0 0 16px; }
 .modal-wide { max-width: 960px; max-height: 88vh; display: flex; flex-direction: column; overflow: hidden; }
 .modal-wide .modal-body { overflow: auto; margin: 0 -4px; padding: 0 4px; }
@@ -166,6 +169,11 @@ a { color: inherit; text-decoration: none; }
 .field input:focus, .field select:focus { border-color: var(--accent); }
 .snippet { background: var(--snippet-bg); border: 1px solid var(--border); border-radius: 10px; padding: 12px; font-family: var(--mono);
   font-size: 12px; color: var(--snippet-fg); white-space: pre-wrap; word-break: break-all; }
+.snippet-wrap { position: relative; }
+.snippet-wrap .snippet { padding-right: 78px; }
+.copy-btn { position: absolute; top: 8px; right: 8px; background: rgba(255,255,255,0.08); border: 1px solid var(--border2);
+  color: var(--snippet-fg); border-radius: 7px; padding: 4px 9px; font-size: 11px; cursor: pointer; font-family: var(--font); }
+.copy-btn:hover { border-color: var(--accent); }
 .muted { color: var(--muted); font-size: 12.5px; }
 .empty { text-align: center; color: var(--muted); padding: 60px 20px; border: 1px dashed var(--border2); border-radius: 14px; }
 .row { display: flex; gap: 8px; align-items: center; }

@@ -7,7 +7,7 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") { res.setHeader("Allow", "POST"); return res.status(405).end(); }
   try {
-    const token = (req.headers["x-aether-token"] as string) || "";
+    const token = (req.headers["x-stratos-token"] as string) || (req.headers["x-aether-token"] as string) || "";
     if (!token) return res.status(400).json({ error: "missing x-aether-token" });
     const { data: t } = await supabaseAdmin.from("enroll_tokens").select("agent_id").eq("token", token).maybeSingle();
     if (!t?.agent_id) return res.status(404).json({ error: "unknown token" });

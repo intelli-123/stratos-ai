@@ -55,31 +55,23 @@ export function liveStatus(a: Agent): "online" | "offline" | "degraded" {
   return (a.status as any) === "online" ? "online" : "offline";
 }
 
-// The exact, verified OpenLLMetry integration. Traceloop defaults to OTLP
-// *protobuf* at `<baseUrl>/v1/traces`; Stratos AI ingests OTLP *JSON* at /api/ingest,
-// so we hand traceloop a JSON HTTP exporter pointed straight at the ingest URL.
-// `instrument.js` must be imported BEFORE any LLM library so it can patch it.
+// Onboarding via the @lnt/stratos-sdk package: install, set env, run with
+// `--import`. No per-agent file, and the URL/token live in env so they can
+// change without code edits. Each step is rendered with its own copy button.
+export const SDK_PACKAGE = "@lnt/stratos-sdk";
+
+export interface EnrollStep { title: string; lang: "bash" | "env" | "js"; code: string; }
+
+export function buildEnrollSteps(agentName: string, baseUrl: string, token: string): EnrollStep[] {
+  return [
+    { title: "1. Install the Stratos SDK", lang: "bash", code: `npm i ${SDK_PACKAGE}` },
+    { title: "2. Add these to your agent's .env", lang: "env", code: `STRATOS_TOKEN=${token}\nSTRATOS_URL=${baseUrl}\nSTRATOS_APP_NAME=${agentName}` },
+    { title: "3. Run with telemetry — zero code changes", lang: "bash", code: `node --import ${SDK_PACKAGE}/register server.js` },
+    { title: "…or add one line at the very top of your entrypoint instead", lang: "js", code: `import "${SDK_PACKAGE}/register";` },
+  ];
+}
+
+// Plain-string form (CSV/back-compat) — joins the steps.
 export function buildEnrollSnippet(agentName: string, baseUrl: string, token: string) {
-  const ingest = `${baseUrl}/api/ingest`;
-  const heartbeat = `${baseUrl}/api/heartbeat`;
-  return `# 1. install the SDK + JSON exporter
-npm i @traceloop/node-server-sdk @opentelemetry/exporter-trace-otlp-http
-
-# 2. create instrument.js
-import * as traceloop from "@traceloop/node-server-sdk";
-import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
-traceloop.initialize({
-  appName: "${agentName}",
-  disableBatch: true,
-  exporter: new OTLPTraceExporter({
-    url: "${ingest}",
-    headers: { "x-aether-token": "${token}" },
-  }),
-});
-// heartbeat keeps the agent "online" while the process runs (offline when it stops)
-const ping = () => fetch("${heartbeat}", { method: "POST", headers: { "x-aether-token": "${token}" } }).catch(() => {});
-ping(); setInterval(ping, 30000).unref();
-
-# 3. import it FIRST in your entrypoint (before openai/langchain/etc.)
-import "./instrument.js";`;
+  return buildEnrollSteps(agentName, baseUrl, token).map((s) => `# ${s.title}\n${s.code}`).join("\n\n");
 }
