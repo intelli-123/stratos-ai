@@ -47,3 +47,32 @@ export const fmtNum = (n?: number | null) => {
 };
 // An agent is "online" if it reported within this window.
 export const LIVENESS_MS = 90_000;
+
+// The exact, verified OpenLLMetry integration. Traceloop defaults to OTLP
+// *protobuf* at `<baseUrl>/v1/traces`; Aethyr ingests OTLP *JSON* at /api/ingest,
+// so we hand traceloop a JSON HTTP exporter pointed straight at the ingest URL.
+// `instrument.js` must be imported BEFORE any LLM library so it can patch it.
+export function buildEnrollSnippet(agentName: string, baseUrl: string, token: string) {
+  const ingest = `${baseUrl}/api/ingest`;
+  const heartbeat = `${baseUrl}/api/heartbeat`;
+  return `# 1. install the SDK + JSON exporter
+npm i @traceloop/node-server-sdk @opentelemetry/exporter-trace-otlp-http
+
+# 2. create instrument.js
+import * as traceloop from "@traceloop/node-server-sdk";
+import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
+traceloop.initialize({
+  appName: "${agentName}",
+  disableBatch: true,
+  exporter: new OTLPTraceExporter({
+    url: "${ingest}",
+    headers: { "x-aether-token": "${token}" },
+  }),
+});
+// heartbeat keeps the agent "online" while the process runs (offline when it stops)
+const ping = () => fetch("${heartbeat}", { method: "POST", headers: { "x-aether-token": "${token}" } }).catch(() => {});
+ping(); setInterval(ping, 30000).unref();
+
+# 3. import it FIRST in your entrypoint (before openai/langchain/etc.)
+import "./instrument.js";`;
+}

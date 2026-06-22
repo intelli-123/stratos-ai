@@ -54,7 +54,6 @@ export default function Layout({ children }: { children: ReactNode }) {
           <div className="search"><input placeholder="Search traces, models, agents…" /></div>
           <div className="topbar-right">
             <span className="pill"><span className="dot dot-green" />Live</span>
-            <span className="pill"><span className="dot dot-amber" />AIOps off</span>
             <span className="pill">admin</span>
             <button className="btn">Profile</button>
             <button className="btn">Logout</button>

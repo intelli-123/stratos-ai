@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Agent, fmtCost, fmtNum, LIVENESS_MS } from "@/lib/app";
 
 function liveStatus(a: Agent): "online" | "offline" | "degraded" {
@@ -8,7 +9,7 @@ function liveStatus(a: Agent): "online" | "offline" | "degraded" {
 
 export default function AgentCard({ agent, onEdit }: { agent: Agent; onEdit: (a: Agent) => void }) {
   const st = liveStatus(agent);
-  const dot = st === "online" ? "dot-green" : st === "degraded" ? "dot-amber" : "dot-gray";
+  const dot = st === "online" ? "dot-green" : st === "degraded" ? "dot-amber" : "dot-red";
   const tools = agent.tools || [];
   return (
     <div className="card">
@@ -41,7 +42,7 @@ export default function AgentCard({ agent, onEdit }: { agent: Agent; onEdit: (a:
         </div>
       )}
       <div className="card-actions">
-        <button className="btn">Open</button>
+        <Link className="btn" href={`/agents/${agent.id}`}>Open</Link>
         <button className="btn" onClick={() => onEdit(agent)}>Edit</button>
       </div>
     </div>

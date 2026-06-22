@@ -25,11 +25,18 @@ create table if not exists agent_queries (
   id         uuid primary key default gen_random_uuid(),
   agent_id   uuid references agents(id) on delete cascade,
   task       text,
+  prompt     text,                -- user prompt captured from gen_ai.prompt.*
+  response   text,                -- model completion (gen_ai.completion.*)
+  model      text,
   tokens     bigint,
   cost       double precision,
   latency_ms integer,
   created_at timestamptz default now()
 );
+-- If the table already exists from an earlier install, add the new columns:
+alter table agent_queries add column if not exists prompt   text;
+alter table agent_queries add column if not exists response text;
+alter table agent_queries add column if not exists model    text;
 create index if not exists idx_aq_agent on agent_queries(agent_id, created_at desc);
 
 create table if not exists enroll_tokens (

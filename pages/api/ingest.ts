@@ -16,6 +16,27 @@ const attrs = (a: any[]) => {
   return m;
 };
 const pick = (m: any, keys: string[]) => { for (const k of keys) { const v = m[k]; if (v !== undefined && v !== null && v !== "") return v; } return undefined; };
+const clip = (s: any, n = 4000) => { const t = s == null ? "" : String(s); return t.length > n ? t.slice(0, n) + "…" : t; };
+// OpenLLMetry stores chat content as indexed attrs: gen_ai.prompt.{i}.role /
+// .content and gen_ai.completion.{i}.content. Pull the last *user* prompt and
+// the assistant completion so the detail view can show what was asked/answered.
+function extractContent(a: Record<string, any>) {
+  let prompt = "", response = "";
+  const promptIdx: number[] = [], complIdx: number[] = [];
+  for (const k of Object.keys(a)) {
+    let m = k.match(/^gen_ai\.prompt\.(\d+)\.content$/);
+    if (m) promptIdx.push(Number(m[1]));
+    m = k.match(/^gen_ai\.completion\.(\d+)\.content$/);
+    if (m) complIdx.push(Number(m[1]));
+  }
+  // Prefer the last user-role prompt; fall back to the last prompt of any role.
+  const users = promptIdx.filter((i) => String(a[`gen_ai.prompt.${i}.role`] || "").toLowerCase() === "user");
+  const pi = (users.length ? users : promptIdx).sort((x, y) => y - x)[0];
+  if (pi !== undefined) prompt = a[`gen_ai.prompt.${pi}.content`];
+  const ci = complIdx.sort((x, y) => x - y)[0];
+  if (ci !== undefined) response = a[`gen_ai.completion.${ci}.content`];
+  return { prompt: clip(prompt), response: clip(response) };
+}
 const RATES: Record<string, [number, number]> = { // per 1k: [in, out]
   "gpt-4o": [0.005, 0.015], "gpt-4o-mini": [0.00015, 0.0006],
   "claude-sonnet-4-6": [0.003, 0.015], "claude-opus-4-8": [0.015, 0.075], default: [0.001, 0.003],
@@ -29,6 +50,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method !== "POST") { res.setHeader("Allow", "POST"); return res.status(405).end(); }
   try {
     const token = (req.headers["x-aether-token"] as string) || "";
+    const ct = String(req.headers["content-type"] || "");
+    console.log(`[ingest] hit ct=${ct} token=${token ? token.slice(0, 6) + "…" : "none"} spans=${(req.body?.resourceSpans || req.body?.resource_spans || []).length}`);
     const body = req.body || {};
     // Aggregate per service.name across the batch.
     const perSvc: Record<string, { tokens: number; cost: number; queries: number; tools: Set<string>; model?: string; rows: any[] }> = {};
@@ -54,8 +77,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           const cost = isLlm ? (Number(pick(a, ["gen_ai.usage.cost", "llm.usage.total_cost"])) || estCost(model, inTok, outTok)) : 0;
           if (toolName) bucket.tools.add(String(toolName));
           if (model) bucket.model = model;
+          const { prompt, response } = isLlm ? extractContent(a) : { prompt: "", response: "" };
           bucket.tokens += tokens; bucket.cost += cost; bucket.queries += 1;
-          bucket.rows.push({ task: isTool ? `tool:${toolName}` : (sp.name || op || "llm"), tokens, cost: +cost.toFixed(6), latency_ms: latency });
+          bucket.rows.push({
+            task: isTool ? `tool:${toolName}` : (sp.name || op || "llm"),
+            prompt: prompt || null, response: response || null, model: model || null,
+            tokens, cost: +cost.toFixed(6), latency_ms: latency,
+          });
         }
       }
     }
