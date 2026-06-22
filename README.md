@@ -1,6 +1,6 @@
-# Aethyr — Agent Control Tower
+# Stratos AI — Agent Observability
 
-A Next.js + Supabase control tower for AI agents (local / MCP / remote): liveness,
+A Next.js + Supabase observability platform for AI agents (local / MCP / remote): liveness,
 tokens & cost per agent and per query, tools per agent, filters, and zero-code
 onboarding via OpenLLMetry/OpenTelemetry. *(Name centralized in `lib/app.ts` —
 rename `APP_NAME` to rebrand everywhere.)*

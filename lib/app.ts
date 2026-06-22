@@ -1,8 +1,8 @@
 // Single source of truth for branding — rename here to rebrand everywhere.
-export const APP_NAME    = "Aethyr";
-export const APP_TAGLINE = "Control Tower";
+export const APP_NAME    = "Stratos AI";
+export const APP_TAGLINE = "Agent Observability";
 export const APP_VENDOR  = "L&T Technology Services";
-export const APP_BLURB   = "Agent Control Tower — built on OpenLLMetry / OpenTelemetry";
+export const APP_BLURB   = "AI agent observability — built on OpenLLMetry / OpenTelemetry";
 
 export type AgentType   = "local" | "mcp" | "remote";
 export type AgentStatus = "online" | "offline" | "degraded";
@@ -49,7 +49,7 @@ export const fmtNum = (n?: number | null) => {
 export const LIVENESS_MS = 90_000;
 
 // The exact, verified OpenLLMetry integration. Traceloop defaults to OTLP
-// *protobuf* at `<baseUrl>/v1/traces`; Aethyr ingests OTLP *JSON* at /api/ingest,
+// *protobuf* at `<baseUrl>/v1/traces`; Stratos AI ingests OTLP *JSON* at /api/ingest,
 // so we hand traceloop a JSON HTTP exporter pointed straight at the ingest URL.
 // `instrument.js` must be imported BEFORE any LLM library so it can patch it.
 export function buildEnrollSnippet(agentName: string, baseUrl: string, token: string) {

@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 import { Agent, AgentType, FILTERS } from "@/lib/app";
 import AgentCard from "@/components/AgentCard";
 import AddAgentModal from "@/components/AddAgentModal";
+import AgentDetailModal from "@/components/AgentDetailModal";
 
 export default function AgentsPage() {
   const [agents, setAgents] = useState<Agent[]>([]);
@@ -10,6 +11,7 @@ export default function AgentsPage() {
   const [filter, setFilter] = useState<"all" | AgentType>("all");
   const [q, setQ] = useState("");
   const [modal, setModal] = useState<null | { mode: "add" | "edit"; agent?: Agent }>(null);
+  const [detailId, setDetailId] = useState<string | null>(null);
 
   async function load() {
     setLoading(true); setErr("");
@@ -55,11 +57,12 @@ export default function AgentsPage() {
           </div>
         ) : (
           <div className="grid">
-            {shown.map((a) => <AgentCard key={a.id} agent={a} onEdit={(ag) => setModal({ mode: "edit", agent: ag })} />)}
+            {shown.map((a) => <AgentCard key={a.id} agent={a} onEdit={(ag) => setModal({ mode: "edit", agent: ag })} onOpen={(ag) => setDetailId(ag.id)} />)}
           </div>
         )}
 
       {modal && <AddAgentModal mode={modal.mode} agent={modal.agent} onClose={() => setModal(null)} onSaved={load} />}
+      {detailId && <AgentDetailModal agentId={detailId} onClose={() => setDetailId(null)} />}
     </>
   );
 }

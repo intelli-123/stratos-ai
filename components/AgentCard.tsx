@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { Agent, fmtCost, fmtNum, LIVENESS_MS } from "@/lib/app";
 
 function liveStatus(a: Agent): "online" | "offline" | "degraded" {
@@ -7,14 +6,14 @@ function liveStatus(a: Agent): "online" | "offline" | "degraded" {
   return a.status || "offline";
 }
 
-export default function AgentCard({ agent, onEdit }: { agent: Agent; onEdit: (a: Agent) => void }) {
+export default function AgentCard({ agent, onEdit, onOpen }: { agent: Agent; onEdit: (a: Agent) => void; onOpen: (a: Agent) => void }) {
   const st = liveStatus(agent);
   const dot = st === "online" ? "dot-green" : st === "degraded" ? "dot-amber" : "dot-red";
   const tools = agent.tools || [];
   return (
     <div className="card">
       <div className="card-head">
-        <div className="card-name">{agent.name}</div>
+        <div className="card-name" style={{ cursor: "pointer" }} onClick={() => onOpen(agent)}>{agent.name}</div>
         <span className="status"><span className={"dot " + dot} />{st[0].toUpperCase() + st.slice(1)}</span>
       </div>
       <div className="badges">
@@ -42,7 +41,7 @@ export default function AgentCard({ agent, onEdit }: { agent: Agent; onEdit: (a:
         </div>
       )}
       <div className="card-actions">
-        <Link className="btn" href={`/agents/${agent.id}`}>Open</Link>
+        <button className="btn" onClick={() => onOpen(agent)}>Open</button>
         <button className="btn" onClick={() => onEdit(agent)}>Edit</button>
       </div>
     </div>
