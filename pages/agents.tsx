@@ -1,5 +1,8 @@
 import { useEffect, useState, useMemo } from "react";
-import { Agent, AgentType, FILTERS } from "@/lib/app";
+import { Agent, AgentType, FILTERS, liveStatus } from "@/lib/app";
+
+const STATUS_FILTERS = ["all", "online", "offline"] as const;
+type StatusFilter = (typeof STATUS_FILTERS)[number];
 import AgentCard from "@/components/AgentCard";
 import AddAgentModal from "@/components/AddAgentModal";
 import AgentDetailModal from "@/components/AgentDetailModal";
@@ -9,6 +12,7 @@ export default function AgentsPage() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
   const [filter, setFilter] = useState<"all" | AgentType>("all");
+  const [status, setStatus] = useState<StatusFilter>("all");
   const [q, setQ] = useState("");
   const [modal, setModal] = useState<null | { mode: "add" | "edit"; agent?: Agent }>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
@@ -26,8 +30,9 @@ export default function AgentsPage() {
 
   const shown = useMemo(() => agents
     .filter((a) => filter === "all" || a.type === filter)
+    .filter((a) => status === "all" || liveStatus(a) === status)
     .filter((a) => !q || (a.name + " " + (a.description || "") + " " + (a.team || "")).toLowerCase().includes(q.toLowerCase())),
-    [agents, filter, q]);
+    [agents, filter, status, q]);
 
   return (
     <>
@@ -45,6 +50,14 @@ export default function AgentsPage() {
         <div className="seg">
           {FILTERS.map((f) => (
             <button key={f} className={filter === f ? "active" : ""} onClick={() => setFilter(f)}>{f}</button>
+          ))}
+        </div>
+        <div className="seg">
+          {STATUS_FILTERS.map((sf) => (
+            <button key={sf} className={status === sf ? "active" : ""} onClick={() => setStatus(sf)}>
+              {sf !== "all" && <span className={"dot " + (sf === "online" ? "dot-green" : "dot-red")} style={{ marginRight: 6 }} />}
+              {sf}
+            </button>
           ))}
         </div>
       </div>

@@ -48,6 +48,13 @@ export const fmtNum = (n?: number | null) => {
 // An agent is "online" if it reported within this window.
 export const LIVENESS_MS = 90_000;
 
+// Effective liveness derived from last_seen (the stored status can go stale).
+export function liveStatus(a: Agent): "online" | "offline" | "degraded" {
+  if (a.status === "degraded") return "degraded";
+  if (a.last_seen) return Date.now() - new Date(a.last_seen).getTime() < LIVENESS_MS ? "online" : "offline";
+  return (a.status as any) === "online" ? "online" : "offline";
+}
+
 // The exact, verified OpenLLMetry integration. Traceloop defaults to OTLP
 // *protobuf* at `<baseUrl>/v1/traces`; Stratos AI ingests OTLP *JSON* at /api/ingest,
 // so we hand traceloop a JSON HTTP exporter pointed straight at the ingest URL.

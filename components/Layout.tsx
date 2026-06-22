@@ -2,6 +2,7 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import { ReactNode } from "react";
 import { APP_NAME, APP_TAGLINE, APP_VENDOR, APP_BLURB } from "@/lib/app";
+import ThemeToggle from "@/components/ThemeToggle";
 
 const NAV = [
   { section: "Operate", items: [
@@ -55,6 +56,7 @@ export default function Layout({ children }: { children: ReactNode }) {
           <div className="topbar-right">
             <span className="pill"><span className="dot dot-green" />Live</span>
             <span className="pill">admin</span>
+            <ThemeToggle />
             <button className="btn">Profile</button>
             <button className="btn">Logout</button>
           </div>
