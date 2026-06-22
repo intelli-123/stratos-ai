@@ -1,0 +1,65 @@
+import { useEffect, useState, useMemo } from "react";
+import { Agent, AgentType, FILTERS } from "@/lib/app";
+import AgentCard from "@/components/AgentCard";
+import AddAgentModal from "@/components/AddAgentModal";
+
+export default function AgentsPage() {
+  const [agents, setAgents] = useState<Agent[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState("");
+  const [filter, setFilter] = useState<"all" | AgentType>("all");
+  const [q, setQ] = useState("");
+  const [modal, setModal] = useState<null | { mode: "add" | "edit"; agent?: Agent }>(null);
+
+  async function load() {
+    setLoading(true); setErr("");
+    try {
+      const r = await fetch("/api/agents");
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || "Failed to load");
+      setAgents(j.agents || []);
+    } catch (e: any) { setErr(e.message); } finally { setLoading(false); }
+  }
+  useEffect(() => { load(); const t = setInterval(load, 15000); return () => clearInterval(t); }, []);
+
+  const shown = useMemo(() => agents
+    .filter((a) => filter === "all" || a.type === filter)
+    .filter((a) => !q || (a.name + " " + (a.description || "") + " " + (a.team || "")).toLowerCase().includes(q.toLowerCase())),
+    [agents, filter, q]);
+
+  return (
+    <>
+      <div className="row">
+        <div>
+          <h1 className="page-title">Agents</h1>
+          <div className="page-sub">{agents.length} registered across local, MCP and remote runtimes</div>
+        </div>
+        <div className="spacer" />
+        <button className="btn btn-primary" onClick={() => setModal({ mode: "add" })}>+ Add Agent</button>
+      </div>
+
+      <div className="toolbar">
+        <input placeholder="Filter by name…" value={q} onChange={(e) => setQ(e.target.value)} />
+        <div className="seg">
+          {FILTERS.map((f) => (
+            <button key={f} className={filter === f ? "active" : ""} onClick={() => setFilter(f)}>{f}</button>
+          ))}
+        </div>
+      </div>
+
+      {loading ? <div className="empty">Loading agents…</div>
+        : err ? <div className="empty" style={{ color: "var(--red)" }}>{err}</div>
+        : shown.length === 0 ? (
+          <div className="empty">
+            No agents yet.<br />Click <b>+ Add Agent</b> to create one and get an onboarding link to connect it.
+          </div>
+        ) : (
+          <div className="grid">
+            {shown.map((a) => <AgentCard key={a.id} agent={a} onEdit={(ag) => setModal({ mode: "edit", agent: ag })} />)}
+          </div>
+        )}
+
+      {modal && <AddAgentModal mode={modal.mode} agent={modal.agent} onClose={() => setModal(null)} onSaved={load} />}
+    </>
+  );
+}
