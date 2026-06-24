@@ -17,24 +17,74 @@ const attrs = (a: any[]) => {
 };
 const pick = (m: any, keys: string[]) => { for (const k of keys) { const v = m[k]; if (v !== undefined && v !== null && v !== "") return v; } return undefined; };
 const clip = (s: any, n = 4000) => { const t = s == null ? "" : String(s); return t.length > n ? t.slice(0, n) + "…" : t; };
-// OpenLLMetry stores chat content as indexed attrs: gen_ai.prompt.{i}.role /
-// .content and gen_ai.completion.{i}.content. Pull the last *user* prompt and
-// the assistant completion so the detail view can show what was asked/answered.
+// --- prompt/response extraction -------------------------------------------
+// traceloop 0.27 emits the NEW OTel semconv: gen_ai.input.messages /
+// gen_ai.output.messages as JSON arrays of {role, parts:[{type,content}]}.
+// Older versions used indexed gen_ai.prompt.{i}.content, and LangChain
+// chain/tool spans carry traceloop.entity.input/output JSON. Handle all three.
+const partsText = (parts: any): string => {
+  if (typeof parts === "string") return parts;
+  if (Array.isArray(parts)) return parts.map((p) => (typeof p === "string" ? p : (p?.content ?? p?.text ?? ""))).filter(Boolean).join("\n");
+  return "";
+};
+function fromSemconv(json: any, preferRole: string | null): string {
+  try {
+    const arr = JSON.parse(json);
+    if (!Array.isArray(arr)) return "";
+    const textOf = (m: any) => partsText(m?.parts ?? m?.content);
+    if (preferRole) {
+      const matches = arr.filter((m) => String(m?.role || "").toLowerCase() === preferRole);
+      const pool = matches.length ? matches : arr;
+      return textOf(pool[pool.length - 1]);
+    }
+    return textOf(arr[0]);
+  } catch { return ""; }
+}
+// Pull every string under a "content"/"text" key from arbitrary JSON (LangChain
+// serializes HumanMessage etc. as {kwargs:{content}} — no flat role field).
+function deepContents(json: any): string[] {
+  const out: string[] = [];
+  try {
+    const visit = (v: any) => {
+      if (v == null || typeof v === "string") return;
+      if (Array.isArray(v)) return v.forEach(visit);
+      if (typeof v === "object") for (const [k, val] of Object.entries(v)) {
+        if ((k === "content" || k === "text") && typeof val === "string" && val.trim()) out.push(val);
+        else visit(val);
+      }
+    };
+    visit(JSON.parse(json));
+  } catch {}
+  return out;
+}
 function extractContent(a: Record<string, any>) {
-  let prompt = "", response = "";
-  const promptIdx: number[] = [], complIdx: number[] = [];
-  for (const k of Object.keys(a)) {
-    let m = k.match(/^gen_ai\.prompt\.(\d+)\.content$/);
-    if (m) promptIdx.push(Number(m[1]));
-    m = k.match(/^gen_ai\.completion\.(\d+)\.content$/);
-    if (m) complIdx.push(Number(m[1]));
+  let prompt = fromSemconv(a["gen_ai.input.messages"], "user");
+  let response = fromSemconv(a["gen_ai.output.messages"], null);
+
+  // Legacy indexed attrs (older OpenLLMetry).
+  if (!prompt || !response) {
+    const pIdx: number[] = [], cIdx: number[] = [];
+    for (const k of Object.keys(a)) {
+      let m = k.match(/^gen_ai\.prompt\.(\d+)\.content$/); if (m) pIdx.push(Number(m[1]));
+      m = k.match(/^gen_ai\.completion\.(\d+)\.content$/); if (m) cIdx.push(Number(m[1]));
+    }
+    if (!prompt && pIdx.length) {
+      const users = pIdx.filter((i) => String(a[`gen_ai.prompt.${i}.role`] || "").toLowerCase() === "user");
+      const pi = (users.length ? users : pIdx).sort((x, y) => y - x)[0];
+      prompt = a[`gen_ai.prompt.${pi}.content`] || "";
+    }
+    if (!response && cIdx.length) response = a[`gen_ai.completion.${cIdx.sort((x, y) => x - y)[0]}.content`] || "";
   }
-  // Prefer the last user-role prompt; fall back to the last prompt of any role.
-  const users = promptIdx.filter((i) => String(a[`gen_ai.prompt.${i}.role`] || "").toLowerCase() === "user");
-  const pi = (users.length ? users : promptIdx).sort((x, y) => y - x)[0];
-  if (pi !== undefined) prompt = a[`gen_ai.prompt.${pi}.content`];
-  const ci = complIdx.sort((x, y) => x - y)[0];
-  if (ci !== undefined) response = a[`gen_ai.completion.${ci}.content`];
+
+  // LangChain chain/tool spans carry I/O here as JSON.
+  if (!prompt && a["traceloop.entity.input"]) {
+    const cs = deepContents(a["traceloop.entity.input"]); if (cs.length) prompt = cs[cs.length - 1];
+  }
+  if (!response && a["traceloop.entity.output"]) {
+    const cs = deepContents(a["traceloop.entity.output"]);
+    if (cs.length) response = cs[0];
+    else { try { const o = JSON.parse(a["traceloop.entity.output"]); if (typeof o === "string") response = o; } catch {} }
+  }
   return { prompt: clip(prompt), response: clip(response) };
 }
 const RATES: Record<string, [number, number]> = { // per 1k: [in, out]
@@ -77,11 +127,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           const cost = isLlm ? (Number(pick(a, ["gen_ai.usage.cost", "llm.usage.total_cost"])) || estCost(model, inTok, outTok)) : 0;
           if (toolName) bucket.tools.add(String(toolName));
           if (model) bucket.model = model;
-          const { prompt, response } = isLlm ? extractContent(a) : { prompt: "", response: "" };
+          const { prompt, response } = extractContent(a); // capture I/O for LLM and tool steps
           bucket.tokens += tokens; bucket.cost += cost; bucket.queries += 1;
           bucket.rows.push({
             task: isTool ? (toolName ? `tool:${toolName}` : (sp.name || "tool")) : (sp.name || op || "llm"),
             prompt: prompt || null, response: response || null, model: model || null,
+            trace_id: sp.traceId || sp.trace_id || null,
             tokens, cost: +cost.toFixed(6), latency_ms: latency,
           });
         }
@@ -125,7 +176,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (error) {
           // Most likely the prompt/response/model columns aren't migrated yet.
           // Fall back to the base columns so per-query rows still record.
-          const base = rows.map(({ prompt, response, model, ...rest }) => rest);
+          const base = rows.map(({ prompt, response, model, trace_id, ...rest }) => rest);
           const retry = await supabaseAdmin.from("agent_queries").insert(base);
           if (retry.error) console.warn("[ingest] agent_queries insert failed:", retry.error.message);
           else console.warn("[ingest] inserted without prompt/response/model — run supabase/migration-2026-06-prompts.sql for full capture");

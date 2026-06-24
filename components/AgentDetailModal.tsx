@@ -1,21 +1,14 @@
-import { useEffect, useState, useCallback } from "react";
-import { Agent, AgentQuery, fmtCost, fmtNum, LIVENESS_MS } from "@/lib/app";
+import { useEffect, useState, useCallback, Fragment } from "react";
+import { Agent, Execution, fmtCost, fmtNum, liveStatus } from "@/lib/app";
 
-type Row = AgentQuery & { prompt?: string; response?: string; model?: string; task?: string };
 type Resp = {
   agent: Agent;
-  queries: Row[];
+  executions: Execution[];
   summary: { count: number; tokens: number; cost: number; avg_latency: number };
 };
 
 const RANGES = [{ k: "today", label: "Today" }, { k: "7d", label: "7 days" }, { k: "30d", label: "30 days" }];
 const SORTS = [{ k: "recent", label: "Newest" }, { k: "cost_desc", label: "Cost: high → low" }, { k: "cost_asc", label: "Cost: low → high" }];
-
-function liveStatus(a: Agent): "online" | "offline" | "degraded" {
-  if (a.status === "degraded") return "degraded";
-  if (a.last_seen) return Date.now() - new Date(a.last_seen).getTime() < LIVENESS_MS ? "online" : "offline";
-  return (a.status as any) === "online" ? "online" : "offline";
-}
 
 export default function AgentDetailModal({ agentId, onClose }: { agentId: string; onClose: () => void }) {
   const [range, setRange] = useState("30d");
@@ -34,7 +27,6 @@ export default function AgentDetailModal({ agentId, onClose }: { agentId: string
   }, [agentId, range, sort]);
   useEffect(() => { load(); const t = setInterval(load, 15000); return () => clearInterval(t); }, [load]);
 
-  // Close on Escape.
   useEffect(() => {
     const h = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", h); return () => window.removeEventListener("keydown", h);
@@ -71,7 +63,7 @@ export default function AgentDetailModal({ agentId, onClose }: { agentId: string
           : (
           <div className="modal-body">
             <div className="kpis" style={{ margin: "14px 0" }}>
-              <div className="kpi"><div className="l">Queries ({range})</div><div className="v">{fmtNum(s!.count)}</div></div>
+              <div className="kpi"><div className="l">Executions ({range})</div><div className="v">{fmtNum(s!.count)}</div></div>
               <div className="kpi"><div className="l">Tokens</div><div className="v">{fmtNum(s!.tokens)}</div></div>
               <div className="kpi"><div className="l">Cost</div><div className="v">{fmtCost(s!.cost)}</div></div>
               <div className="kpi"><div className="l">Avg latency</div><div className="v">{s!.avg_latency}<span style={{ fontSize: 14, color: "var(--dim)" }}>ms</span></div></div>
@@ -83,7 +75,7 @@ export default function AgentDetailModal({ agentId, onClose }: { agentId: string
               <div className="seg">{SORTS.map((o) => <button key={o.k} className={sort === o.k ? "active" : ""} onClick={() => setSort(o.k)}>{o.label}</button>)}</div>
             </div>
 
-            {data.queries.length === 0 ? (
+            {data.executions.length === 0 ? (
               <div className="empty">No activity in this window. Run the agent to see prompts, cost and latency here.</div>
             ) : (
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -98,23 +90,48 @@ export default function AgentDetailModal({ agentId, onClose }: { agentId: string
                   </tr>
                 </thead>
                 <tbody>
-                  {data.queries.map((r) => {
-                    const isOpen = open === r.id;
-                    const text = r.prompt || (r.task ? `(${r.task})` : "—");
-                    const expandable = !!(r.prompt || r.response);
+                  {data.executions.map((e) => {
+                    const isOpen = open === e.id;
+                    const text = e.prompt || "—";
                     return (
-                      <tr key={r.id} style={{ borderTop: "1px solid var(--line)", cursor: expandable ? "pointer" : "default" }}
-                        onClick={() => expandable && setOpen(isOpen ? null : r.id)}>
-                        <td style={{ padding: "10px 8px", whiteSpace: "nowrap" }} className="muted">{r.created_at ? new Date(r.created_at).toLocaleString() : "—"}</td>
-                        <td style={{ padding: "10px 8px", maxWidth: 380 }}>
-                          <div style={{ whiteSpace: isOpen ? "pre-wrap" : "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{text}</div>
-                          {isOpen && r.response && <div className="muted" style={{ marginTop: 6, whiteSpace: "pre-wrap", borderTop: "1px dashed var(--line)", paddingTop: 6 }}><b>↳ response:</b> {r.response}</div>}
-                        </td>
-                        <td style={{ padding: "10px 8px" }} className="muted">{r.model || "—"}</td>
-                        <td style={{ padding: "10px 8px", textAlign: "right" }}>{fmtNum(r.tokens)}</td>
-                        <td style={{ padding: "10px 8px", textAlign: "right" }}>{fmtCost(r.cost)}</td>
-                        <td style={{ padding: "10px 8px", textAlign: "right" }} className="muted">{r.latency_ms ?? 0}ms</td>
-                      </tr>
+                      <Fragment key={e.id}>
+                        <tr style={{ borderTop: "1px solid var(--line)", cursor: "pointer" }}
+                          onClick={() => setOpen(isOpen ? null : e.id)}>
+                          <td style={{ padding: "10px 8px", whiteSpace: "nowrap" }} className="muted">
+                            <span style={{ display: "inline-block", width: 12, color: "var(--dim)" }}>{isOpen ? "▾" : "▸"}</span>
+                            {e.started_at ? new Date(e.started_at).toLocaleString() : "—"}
+                          </td>
+                          <td style={{ padding: "10px 8px", maxWidth: 360 }}>
+                            <div style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{text}</div>
+                          </td>
+                          <td style={{ padding: "10px 8px" }} className="muted">{e.model || "—"}</td>
+                          <td style={{ padding: "10px 8px", textAlign: "right" }}>{fmtNum(e.tokens)}</td>
+                          <td style={{ padding: "10px 8px", textAlign: "right" }}>{fmtCost(e.cost)}</td>
+                          <td style={{ padding: "10px 8px", textAlign: "right" }} className="muted">{e.latency_ms}ms</td>
+                        </tr>
+                        {isOpen && (
+                          <tr>
+                            <td colSpan={6} style={{ padding: "0 8px 14px 20px" }}>
+                              <div className="exec-detail">
+                                {e.prompt && <div className="exec-prompt"><b>Prompt</b><div className="snippet" style={{ marginTop: 4 }}>{e.prompt}</div></div>}
+                                <div style={{ margin: "10px 0 6px", color: "var(--muted)", fontSize: 12 }}><b>Execution steps ({e.steps.length})</b></div>
+                                {e.steps.map((sp, i) => (
+                                  <div key={sp.id || i} className="exec-step">
+                                    <div className="exec-step-head">
+                                      <span className="badge">{sp.task || "step"}</span>
+                                      {sp.model && <span className="muted">{sp.model}</span>}
+                                      <span className="spacer" />
+                                      <span className="muted">{fmtNum(sp.tokens)} tok · {fmtCost(sp.cost)} · {sp.latency_ms ?? 0}ms</span>
+                                    </div>
+                                    {sp.prompt && <div className="muted exec-io"><b>↳ in:</b> {sp.prompt}</div>}
+                                    {sp.response && <div className="muted exec-io"><b>↳ out:</b> {sp.response}</div>}
+                                  </div>
+                                ))}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
                     );
                   })}
                 </tbody>

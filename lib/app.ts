@@ -30,12 +30,31 @@ export interface AgentQuery {
   id: string;
   agent_id: string;
   task?: string | null;
+  prompt?: string | null;
+  response?: string | null;
+  model?: string | null;
+  trace_id?: string | null;
   tokens?: number | null;
   cost?: number | null;
   latency_ms?: number | null;
   started_at?: string | null;
   created_at?: string | null;
 }
+
+// One user request = a group of spans (chain + LLM calls + tool calls).
+export interface Execution {
+  id: string;
+  started_at: string;
+  prompt?: string | null;
+  model?: string | null;
+  tokens: number;
+  cost: number;
+  latency_ms: number;
+  steps: AgentQuery[];
+}
+
+export interface DailyPoint { date: string; cost: number; }
+export interface AgentSpend { name: string; cost: number; }
 
 export const FILTERS: ("all" | AgentType)[] = ["all", "local", "mcp", "remote"];
 
