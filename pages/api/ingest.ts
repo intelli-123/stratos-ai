@@ -117,7 +117,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           const inTok = Number(pick(a, ["gen_ai.usage.input_tokens", "gen_ai.usage.prompt_tokens", "llm.usage.prompt_tokens", "llm.token_count.prompt"]) || 0);
           const outTok = Number(pick(a, ["gen_ai.usage.output_tokens", "gen_ai.usage.completion_tokens", "llm.usage.completion_tokens", "llm.token_count.completion"]) || 0);
           const op = String(pick(a, ["gen_ai.operation.name", "openinference.span.kind", "traceloop.span.kind"]) || "").toLowerCase();
-          const toolName = pick(a, ["gen_ai.tool.name", "tool.name"]);
+          // MCP tool spans (e.g. from stratos-mcp-proxy) name the tool via traceloop.entity.name.
+          const toolName = pick(a, ["gen_ai.tool.name", "tool.name", ...(op === "tool" ? ["traceloop.entity.name"] : [])]);
           const isTool = !!toolName || op === "execute_tool" || op === "tool";
           const isLlm = !isTool && (model || inTok || outTok || /llm|chat|completion/i.test(op) || /llm|chat|completion/i.test(sp.name || ""));
           if (!isLlm && !isTool) continue;

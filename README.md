@@ -47,6 +47,21 @@ On its first trace the agent flips to **Connected/online** with live metrics, an
 auto-shows **offline** when it stops reporting. The URL/token live in env, so they
 change without code edits.
 
+### Monitoring MCP servers (Claude Desktop / Cursor / VS Code)
+Use [`@intelli-1113/stratos-mcp-proxy`](https://www.npmjs.com/package/@intelli-1113/stratos-mcp-proxy)
+to wrap a host-launched MCP server. Add an agent (type `mcp`), then wrap the command in the host
+config (e.g. `claude_desktop_config.json`):
+```json
+"weather": {
+  "command": "npx",
+  "args": ["-y","@intelli-1113/stratos-mcp-proxy","--","npx","-y","@scope/weather-mcp@latest"],
+  "env": { "STRATOS_TOKEN":"<token>", "STRATOS_URL":"http://localhost:4000", "STRATOS_APP_NAME":"weather" }
+}
+```
+Restart the host. You'll see the server **online** with its **tool calls** (name, args, result,
+latency). Note: host MCP servers don't call the LLM themselves, so tokens/cost aren't captured —
+the model runs inside the host.
+
 ## How it works
 - **Mission Control** — live KPIs (agents online, tokens, spend, queries).
 - **Agents** — grid filtered by type (local/mcp/remote) **and** status (online/offline),
