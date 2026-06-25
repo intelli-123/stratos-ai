@@ -4,6 +4,10 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 // Mission Control charts: 7-day daily spend + spend-by-agent.
 export default async function handler(_req: NextApiRequest, res: NextApiResponse) {
   try {
+    if (!supabaseAdmin) {
+      return res.status(500).json({ error: "Supabase connection is not initialized. Please verify that NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY are set." });
+    }
+
     const days = 7;
     const since = new Date(Date.now() - days * 86400_000); since.setUTCHours(0, 0, 0, 0);
 

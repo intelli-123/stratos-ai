@@ -6,6 +6,9 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 export default async function handler(_req: NextApiRequest, res: NextApiResponse) {
   const t = Date.now();
   const usingServiceKey = !!process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!supabaseAdmin) {
+    return res.json({ ok: false, error: "Supabase connection is not initialized. NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY is missing.", usingServiceKey, ms: 0 });
+  }
   try {
     const { data, error } = await supabaseAdmin.from("agents").select("id").limit(1);
     if (error) return res.json({ ok: false, where: "query", error: error.message, code: error.code, hint: error.hint, usingServiceKey, ms: Date.now() - t });

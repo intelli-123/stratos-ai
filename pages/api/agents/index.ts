@@ -7,6 +7,10 @@ const BASE = process.env.NEXT_PUBLIC_APP_BASE_URL || "http://localhost:4000";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
  try {
+  if (!supabaseAdmin) {
+    return res.status(500).json({ error: "Supabase connection is not initialized. Please verify that NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY are set." });
+  }
+
   if (req.method === "GET") {
     const { data, error } = await supabaseAdmin.from("agents").select("*").order("created_at", { ascending: true });
     if (error) { console.error("[api/agents GET]", error); return res.status(500).json({ error: error.message, code: error.code, hint: error.hint }); }

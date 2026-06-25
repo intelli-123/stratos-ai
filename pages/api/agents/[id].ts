@@ -15,6 +15,10 @@ const csvCell = (v: any) => `"${String(v ?? "").replace(/"/g, '""')}"`;
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const id = req.query.id as string;
 
+  if (!supabaseAdmin) {
+    return res.status(500).json({ error: "Supabase connection is not initialized. Please verify that NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY are set." });
+  }
+
   if (req.method === "GET") {
     const range = String(req.query.range || "30d");
     const sort = String(req.query.sort || "recent"); // recent | cost_desc | cost_asc
