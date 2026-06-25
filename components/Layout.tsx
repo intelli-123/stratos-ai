@@ -47,7 +47,7 @@ export default function Layout({ children }: { children: ReactNode }) {
             ))}
           </div>
         ))}
-        <div className="side-foot">{APP_NAME} v0.1 · {APP_VENDOR}</div>
+        <div className="side-foot">{APP_NAME} v0.1</div>
       </aside>
 
       <div className="main">
@@ -62,9 +62,9 @@ export default function Layout({ children }: { children: ReactNode }) {
           </div>
         </div>
         <div className="content">{children}</div>
-        <div style={{ padding: "14px 28px", borderTop: "1px solid var(--border)", color: "var(--dim)", fontSize: 12, display: "flex" }}>
+        <div className="footer">
           <span>{APP_NAME} · {APP_BLURB}</span>
-          <span style={{ marginLeft: "auto" }}>© 2026 · {APP_VENDOR}</span>
+          <span>© 2026 · {APP_VENDOR}</span>
         </div>
       </div>
     </div>

@@ -9,7 +9,7 @@ export default async function handler(_req: NextApiRequest, res: NextApiResponse
     }
 
     const days = 7;
-    const since = new Date(Date.now() - days * 86400_000); since.setUTCHours(0, 0, 0, 0);
+    const since = new Date(Date.now() - (days - 1) * 86400_000); since.setUTCHours(0, 0, 0, 0);
 
     // Daily spend: bucket agent_queries cost by UTC day (low volume → aggregate in JS).
     const { data: rows } = await supabaseAdmin
