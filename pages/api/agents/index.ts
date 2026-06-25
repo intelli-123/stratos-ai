@@ -23,7 +23,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const b = req.body || {};
     if (!b.name) return res.status(400).json({ error: "name is required" });
     const insert = {
-      name: b.name, description: b.description || null, type: b.type || "local",
+      name: b.name, description: b.description || null, type: b.type || "agent",
       env: b.env || null, team: b.team || null, model: b.model || null, framework: b.framework || null,
       cost_budget: b.cost_budget ?? null, status: "pending",
     };

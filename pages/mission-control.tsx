@@ -89,7 +89,7 @@ export default function MissionControl() {
   return (
     <>
       <h1 className="page-title">Mission Control</h1>
-      <div className="page-sub">Live overview across local, MCP and remote runtimes</div>
+      <div className="page-sub">Live overview across agent and MCP runtimes</div>
       <div className="kpis">
         <div className="kpi" data-tooltip={onlineStatusText}>
           <div className="l">Agents online</div>

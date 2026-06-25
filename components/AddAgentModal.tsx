@@ -8,7 +8,7 @@ export default function AddAgentModal(
   { mode, agent, onClose, onSaved }:
   { mode: "add" | "edit"; agent?: Agent | null; onClose: () => void; onSaved: () => void }
 ) {
-  const [f, setF] = useState<Partial<Agent>>(agent || { type: "local", env: "prod" });
+  const [f, setF] = useState<Partial<Agent>>(agent || { type: "agent", env: "prod" });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [enroll, setEnroll] = useState<Enroll | null>(null);
@@ -43,7 +43,7 @@ export default function AddAgentModal(
             <div className="row">
               <div className="field" style={{ flex: 1 }}><label>Type</label>
                 <select value={f.type} onChange={(e) => set("type", e.target.value as AgentType)}>
-                  <option value="local">local</option><option value="mcp">mcp</option><option value="remote">remote</option>
+                  <option value="agent">agent</option><option value="mcp">mcp</option>
                 </select></div>
               <div className="field" style={{ flex: 1 }}><label>Environment</label><input value={f.env || ""} onChange={(e) => set("env", e.target.value)} placeholder="prod" /></div>
             </div>

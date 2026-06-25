@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
-import { Agent, AgentType, FILTERS, liveStatus } from "@/lib/app";
+import { Agent, AgentType, FILTERS, FILTER_LABELS, agentKind, liveStatus } from "@/lib/app";
 
 const STATUS_FILTERS = ["all", "online", "offline"] as const;
 type StatusFilter = (typeof STATUS_FILTERS)[number];
@@ -29,7 +29,7 @@ export default function AgentsPage() {
   useEffect(() => { load(); const t = setInterval(load, 15000); return () => clearInterval(t); }, []);
 
   const shown = useMemo(() => agents
-    .filter((a) => filter === "all" || a.type === filter)
+    .filter((a) => filter === "all" || agentKind(a) === filter)
     .filter((a) => status === "all" || liveStatus(a) === status)
     .filter((a) => !q || (a.name + " " + (a.description || "") + " " + (a.team || "")).toLowerCase().includes(q.toLowerCase())),
     [agents, filter, status, q]);
@@ -39,7 +39,7 @@ export default function AgentsPage() {
       <div className="row">
         <div>
           <h1 className="page-title">Agents</h1>
-          <div className="page-sub">{agents.length} registered across local, MCP and remote runtimes</div>
+          <div className="page-sub">{agents.length} registered across agent and MCP runtimes</div>
         </div>
         <div className="spacer" />
         <button className="btn btn-primary" onClick={() => setModal({ mode: "add" })}>+ Add Agent</button>
@@ -49,7 +49,7 @@ export default function AgentsPage() {
         <input placeholder="Filter by name…" value={q} onChange={(e) => setQ(e.target.value)} />
         <div className="seg">
           {FILTERS.map((f) => (
-            <button key={f} className={filter === f ? "active" : ""} onClick={() => setFilter(f)}>{f}</button>
+            <button key={f} className={filter === f ? "active" : ""} onClick={() => setFilter(f)}>{FILTER_LABELS[f] || f}</button>
           ))}
         </div>
         <div className="seg">

@@ -1,4 +1,4 @@
-import { Agent, fmtCost, fmtNum, LIVENESS_MS } from "@/lib/app";
+import { Agent, fmtCost, fmtNum, LIVENESS_MS, agentKind } from "@/lib/app";
 
 function liveStatus(a: Agent): "online" | "offline" | "degraded" {
   if (a.status === "degraded") return "degraded";
@@ -17,8 +17,8 @@ export default function AgentCard({ agent, onEdit, onOpen }: { agent: Agent; onE
         <span className="status"><span className={"dot " + dot} />{st[0].toUpperCase() + st.slice(1)}</span>
       </div>
       <div className="badges">
-        <span className={"badge " + (agent.type === "remote" ? "badge-remote" : "badge-type")}>
-          {agent.type === "mcp" ? "⇄ MCP" : agent.type === "remote" ? "⇲ Remote" : "● Local"}
+        <span className="badge badge-type">
+          {agentKind(agent) === "mcp" ? "⇄ MCP" : "● Agent"}
         </span>
         {agent.env && <span className="badge">{agent.env}</span>}
         {agent.team && <span className="badge">team: {agent.team}</span>}

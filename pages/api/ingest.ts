@@ -158,7 +158,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         agent = data;
       }
       if (!agent) { // dynamic onboarding: first time we see this service.name
-        const { data } = await supabaseAdmin.from("agents").insert({ name: svc, type: "local", status: "online", model: b.model || null }).select().single();
+        const { data } = await supabaseAdmin.from("agents").insert({ name: svc, type: "agent", status: "online", model: b.model || null }).select().single();
         agent = data;
       }
       if (!agent) continue;

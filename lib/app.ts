@@ -4,7 +4,7 @@ export const APP_TAGLINE = "Agent Observability";
 export const APP_VENDOR  = "L&T Technology Services";
 export const APP_BLURB   = "AI agent observability — built on OpenLLMetry / OpenTelemetry";
 
-export type AgentType   = "local" | "mcp" | "remote";
+export type AgentType   = "agent" | "mcp";
 export type AgentStatus = "online" | "offline" | "degraded";
 
 export interface Agent {
@@ -56,7 +56,10 @@ export interface Execution {
 export interface DailyPoint { date: string; cost: number; }
 export interface AgentSpend { name: string; cost: number; }
 
-export const FILTERS: ("all" | AgentType)[] = ["all", "local", "mcp", "remote"];
+export const FILTERS: ("all" | AgentType)[] = ["all", "agent", "mcp"];
+export const FILTER_LABELS: Record<string, string> = { all: "All", agent: "Agents", mcp: "MCP" };
+// Map legacy local/remote types onto "agent" so old data still filters/labels right.
+export const agentKind = (a: { type?: string | null }): AgentType => (a?.type === "mcp" ? "mcp" : "agent");
 
 export const fmtCost = (n?: number | null) =>
   n == null ? "$0.0000" : n < 1 ? `$${n.toFixed(4)}` : `$${n.toFixed(2)}`;
