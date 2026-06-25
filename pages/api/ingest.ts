@@ -167,14 +167,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
       if (!agent) continue;
 
-      const mergedTools = Array.from(new Set([...(agent.tools || []), ...b.tools]));
-      await supabaseAdmin.from("agents").update({
-        tokens: (agent.tokens || 0) + b.tokens,
-        cost: +((agent.cost || 0) + b.cost).toFixed(6),
-        queries: (agent.queries || 0) + b.queries,
-        tools: mergedTools, model: b.model || agent.model, status: "online", last_seen: new Date().toISOString(),
-      }).eq("id", agent.id);
-
       if (b.rows.length) {
         const rows = b.rows.map((r) => ({ ...r, agent_id: agent.id }));
         const { error } = await supabaseAdmin.from("agent_queries").insert(rows);
@@ -187,6 +179,30 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           else console.warn("[ingest] inserted without prompt/response/model — run supabase/migration-2026-06-prompts.sql for full capture");
         }
       }
+
+      const mergedTools = Array.from(new Set([...(agent.tools || []), ...b.tools]));
+      let totalTokens = agent.tokens || 0;
+      let totalCost = agent.cost || 0;
+      let totalQueries = agent.queries || 0;
+
+      if (b.rows.length > 0) {
+        const { data: qData } = await supabaseAdmin
+          .from("agent_queries")
+          .select("tokens, cost")
+          .eq("agent_id", agent.id);
+        if (qData) {
+          totalTokens = qData.reduce((sum, r) => sum + (r.tokens || 0), 0);
+          totalCost = qData.reduce((sum, r) => sum + (r.cost || 0), 0);
+          totalQueries = qData.length;
+        }
+      }
+
+      await supabaseAdmin.from("agents").update({
+        tokens: totalTokens,
+        cost: +totalCost.toFixed(6),
+        queries: totalQueries,
+        tools: mergedTools, model: b.model || agent.model, status: "online", last_seen: new Date().toISOString(),
+      }).eq("id", agent.id);
     }
     return res.status(200).json({ partialSuccess: {} });
   } catch (e: any) {
