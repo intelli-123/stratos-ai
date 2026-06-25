@@ -3,13 +3,15 @@ import crypto from "crypto";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { buildEnrollSnippet, buildEnrollSteps } from "@/lib/app";
 
-const BASE = process.env.NEXT_PUBLIC_APP_BASE_URL || "http://localhost:4000";
-
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
  try {
   if (!supabaseAdmin) {
     return res.status(500).json({ error: "Supabase connection is not initialized. Please verify that NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY are set." });
   }
+
+  const protocol = req.headers["x-forwarded-proto"] || "http";
+  const host = req.headers.host || "localhost:4000";
+  const BASE = `${protocol}://${host}`;
 
   if (req.method === "GET") {
     const { data, error } = await supabaseAdmin.from("agents").select("*").order("created_at", { ascending: true });
@@ -25,11 +27,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (req.method === "POST") {
     const b = req.body || {};
-    if (!b.name) return res.status(400).json({ error: "name is required" });
+    if (
+      !b.name ||
+      !b.description ||
+      !b.type ||
+      !b.env ||
+      !b.team ||
+      b.cost_budget === null ||
+      b.cost_budget === undefined ||
+      b.cost_budget === "" ||
+      !b.model ||
+      !b.framework
+    ) {
+      return res.status(400).json({ error: "All fields are mandatory" });
+    }
     const insert = {
-      name: b.name, description: b.description || null, type: b.type || "agent",
-      env: b.env || null, team: b.team || null, model: b.model || null, framework: b.framework || null,
-      cost_budget: b.cost_budget ?? null, status: "pending",
+      name: b.name, description: b.description, type: b.type,
+      env: b.env, team: b.team, model: b.model, framework: b.framework,
+      cost_budget: Number(b.cost_budget), status: "pending",
     };
     const { data: agent, error } = await supabaseAdmin.from("agents").insert(insert).select().single();
     if (error) { console.error("[api/agents POST]", error); return res.status(500).json({ error: error.message, code: error.code, hint: error.hint }); }

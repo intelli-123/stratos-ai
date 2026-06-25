@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { buildEnrollSteps, buildEnrollSnippet } from "@/lib/app";
 
 const RANGES: Record<string, number> = { today: 1, "7d": 7, "30d": 30 };
 
@@ -19,6 +20,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ error: "Supabase connection is not initialized. Please verify that NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY are set." });
   }
 
+  const protocol = req.headers["x-forwarded-proto"] || "http";
+  const host = req.headers.host || "localhost:4000";
+  const BASE = `${protocol}://${host}`;
+
   if (req.method === "GET") {
     const range = String(req.query.range || "30d");
     const sort = String(req.query.sort || "recent"); // recent | cost_desc | cost_asc
@@ -27,6 +32,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const { data: agent, error: aErr } = await supabaseAdmin.from("agents").select("*").eq("id", id).maybeSingle();
     if (aErr) return res.status(500).json({ error: aErr.message });
     if (!agent) return res.status(404).json({ error: "Agent not found" });
+
+    let enroll = null;
+    if (!agent.last_seen) {
+      const { data: tData } = await supabaseAdmin.from("enroll_tokens").select("token").eq("agent_id", id).maybeSingle();
+      if (tData?.token) {
+        const token = tData.token;
+        const enroll_url = `${BASE}/onboard/${token}`;
+        const steps = buildEnrollSteps(agent.name, BASE, token);
+        enroll = {
+          token,
+          enroll_url,
+          steps,
+          snippet: buildEnrollSnippet(agent.name, BASE, token)
+        };
+      }
+    }
 
     // Fetch chronologically so steps within an execution are in order.
     const { data: queries, error: qErr } = await supabaseAdmin
@@ -86,7 +107,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.send(lines.join("\r\n"));
     }
 
-    return res.json({ agent, executions, summary, range, sort });
+    return res.json({ agent, executions, summary, range, sort, enroll });
   }
 
   if (req.method === "PATCH") {

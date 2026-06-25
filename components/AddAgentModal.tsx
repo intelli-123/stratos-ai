@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Agent, AgentType, APP_NAME, EnrollStep } from "@/lib/app";
 import Snippet from "@/components/Snippet";
 
@@ -6,7 +6,7 @@ type Enroll = { token: string; enroll_url: string; steps: EnrollStep[]; snippet:
 
 export default function AddAgentModal(
   { mode, agent, onClose, onSaved }:
-  { mode: "add" | "edit"; agent?: Agent | null; onClose: () => void; onSaved: () => void }
+  { mode: "add" | "edit" | "onboard"; agent?: Agent | null; onClose: () => void; onSaved: () => void }
 ) {
   const [f, setF] = useState<Partial<Agent>>(agent || { type: "agent", env: "prod" });
   const [busy, setBusy] = useState(false);
@@ -14,8 +14,39 @@ export default function AddAgentModal(
   const [enroll, setEnroll] = useState<Enroll | null>(null);
   const set = (k: keyof Agent, v: any) => setF((p) => ({ ...p, [k]: v }));
 
+  useEffect(() => {
+    if (mode === "onboard" && agent?.id) {
+      setBusy(true);
+      setErr("");
+      fetch(`/api/agents/${agent.id}`)
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.enroll) {
+            setEnroll(data.enroll);
+          } else {
+            setErr("No onboarding details found for this agent.");
+          }
+        })
+        .catch((err) => setErr(err.message))
+        .finally(() => setBusy(false));
+    }
+  }, [mode, agent]);
+
   async function save() {
-    if (!f.name) { setErr("Name is required."); return; }
+    if (
+      !f.name || 
+      !f.description || 
+      !f.type || 
+      !f.env || 
+      !f.team || 
+      f.cost_budget === null || 
+      f.cost_budget === undefined || 
+      !f.model || 
+      !f.framework
+    ) {
+      setErr("All fields are mandatory.");
+      return;
+    }
     setBusy(true); setErr("");
     try {
       if (mode === "add") {
@@ -36,24 +67,34 @@ export default function AddAgentModal(
     <div className="overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="modal">
         {!enroll ? (
-          <>
-            <h3>{mode === "add" ? "Add agent" : "Edit agent"}</h3>
-            <div className="field"><label>Name</label><input value={f.name || ""} onChange={(e) => set("name", e.target.value)} placeholder="e.g. billing-agent" /></div>
-            <div className="field"><label>Description</label><input value={f.description || ""} onChange={(e) => set("description", e.target.value)} /></div>
+          mode === "onboard" ? (
+            <>
+              <h3>Loading onboarding details...</h3>
+              {err && <div style={{ color: "var(--red)", fontSize: 12, marginBottom: 8 }}>{err}</div>}
+              <div className="row">
+                <div className="spacer" />
+                <button className="btn" onClick={onClose}>Close</button>
+              </div>
+            </>
+          ) : (
+            <>
+              <h3>{mode === "add" ? "Add agent" : "Edit agent"}</h3>
+              <div className="field"><label>Name *</label><input value={f.name || ""} onChange={(e) => set("name", e.target.value)} placeholder="e.g. billing-agent" /></div>
+              <div className="field"><label>Description *</label><input value={f.description || ""} onChange={(e) => set("description", e.target.value)} /></div>
             <div className="row">
-              <div className="field" style={{ flex: 1 }}><label>Type</label>
+              <div className="field" style={{ flex: 1 }}><label>Type *</label>
                 <select value={f.type} onChange={(e) => set("type", e.target.value as AgentType)}>
                   <option value="agent">agent</option><option value="mcp">mcp</option>
                 </select></div>
-              <div className="field" style={{ flex: 1 }}><label>Environment</label><input value={f.env || ""} onChange={(e) => set("env", e.target.value)} placeholder="prod" /></div>
+              <div className="field" style={{ flex: 1 }}><label>Environment *</label><input value={f.env || ""} onChange={(e) => set("env", e.target.value)} placeholder="prod" /></div>
             </div>
             <div className="row">
-              <div className="field" style={{ flex: 1 }}><label>Team</label><input value={f.team || ""} onChange={(e) => set("team", e.target.value)} /></div>
-              <div className="field" style={{ flex: 1 }}><label>Cost budget (USD/mo)</label><input type="number" value={f.cost_budget ?? ""} onChange={(e) => set("cost_budget", e.target.value === "" ? null : Number(e.target.value))} /></div>
+              <div className="field" style={{ flex: 1 }}><label>Team *</label><input value={f.team || ""} onChange={(e) => set("team", e.target.value)} /></div>
+              <div className="field" style={{ flex: 1 }}><label>Cost budget (USD/mo) *</label><input type="number" value={f.cost_budget ?? ""} onChange={(e) => set("cost_budget", e.target.value === "" ? null : Number(e.target.value))} /></div>
             </div>
             <div className="row">
-              <div className="field" style={{ flex: 1 }}><label>Model</label><input value={f.model || ""} onChange={(e) => set("model", e.target.value)} /></div>
-              <div className="field" style={{ flex: 1 }}><label>Framework</label><input value={f.framework || ""} onChange={(e) => set("framework", e.target.value)} /></div>
+              <div className="field" style={{ flex: 1 }}><label>Model *</label><input value={f.model || ""} onChange={(e) => set("model", e.target.value)} /></div>
+              <div className="field" style={{ flex: 1 }}><label>Framework *</label><input value={f.framework || ""} onChange={(e) => set("framework", e.target.value)} /></div>
             </div>
             {err && <div style={{ color: "var(--red)", fontSize: 12, marginBottom: 8 }}>{err}</div>}
             <div className="row">
@@ -62,7 +103,7 @@ export default function AddAgentModal(
               <button className="btn btn-primary" disabled={busy} onClick={save}>{busy ? "Saving…" : mode === "add" ? "Create & get link" : "Save"}</button>
             </div>
           </>
-        ) : (
+        )) : (
           <>
             <h3>Connect “{f.name}”</h3>
             <p className="muted">Share these steps with the agent owner — installing the SDK streams telemetry into {APP_NAME}. The agent appears once it reports in.</p>

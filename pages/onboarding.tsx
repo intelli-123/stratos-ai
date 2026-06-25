@@ -9,6 +9,7 @@ export default function Onboarding() {
   const [pending, setPending] = useState<Agent[]>([]);
   const [err, setErr] = useState("");
   const [adding, setAdding] = useState(false);
+  const [onboardAgent, setOnboardAgent] = useState<Agent | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
   async function load() {
@@ -83,7 +84,23 @@ export default function Onboarding() {
             <tbody>
               {pending.map((a) => (
                 <tr key={a.id} style={{ borderTop: "1px solid var(--line)" }}>
-                  <td style={{ padding: "8px" }}>{a.name} <span className="badge" style={{ marginLeft: 6 }}>pending</span></td>
+                  <td style={{ padding: "8px" }}>
+                    <span 
+                      style={{ cursor: "pointer", color: "var(--accent)", fontWeight: 600, transition: "color 0.2s" }}
+                      onClick={() => setOnboardAgent(a)}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.color = "var(--accent2)";
+                        e.currentTarget.style.textDecoration = "underline";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.color = "var(--accent)";
+                        e.currentTarget.style.textDecoration = "none";
+                      }}
+                    >
+                      {a.name}
+                    </span>
+                    <span className="badge" style={{ marginLeft: 6 }}>pending</span>
+                  </td>
                   <td style={{ padding: "8px" }}><span className="badge">{a.type}</span></td>
                   <td style={{ padding: "8px" }} className="muted">{a.cost_budget != null ? `$${a.cost_budget}` : "—"}</td>
                   <td style={{ padding: "8px" }} className="muted">{a.created_at ? new Date(a.created_at).toLocaleString() : "—"}</td>
@@ -131,6 +148,7 @@ export default function Onboarding() {
       </div>
 
       {adding && <AddAgentModal mode="add" onClose={() => setAdding(false)} onSaved={load} />}
+      {onboardAgent && <AddAgentModal mode="onboard" agent={onboardAgent} onClose={() => setOnboardAgent(null)} onSaved={load} />}
     </>
   );
 }
