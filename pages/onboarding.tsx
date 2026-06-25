@@ -10,6 +10,7 @@ export default function Onboarding() {
   const [err, setErr] = useState("");
   const [adding, setAdding] = useState(false);
   const [onboardAgent, setOnboardAgent] = useState<Agent | null>(null);
+  const [editAgent, setEditAgent] = useState<Agent | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
   async function load() {
@@ -39,7 +40,7 @@ export default function Onboarding() {
     a.last_seen && Date.now() - new Date(a.last_seen).getTime() < LIVENESS_MS ? "online" : "offline";
 
   const DeleteBtn = ({ a }: { a: Agent }) => (
-    <button className="btn btn-danger" disabled={busy === a.id} onClick={() => del(a)}>
+    <button className="btn btn-danger" style={{ padding: "4px 8px", fontSize: "11px" }} disabled={busy === a.id} onClick={() => del(a)}>
       {busy === a.id ? "Deleting…" : "Delete"}
     </button>
   );
@@ -104,7 +105,10 @@ export default function Onboarding() {
                   <td style={{ padding: "8px" }}><span className="badge">{a.type}</span></td>
                   <td style={{ padding: "8px" }} className="muted">{a.cost_budget != null ? `$${a.cost_budget}` : "—"}</td>
                   <td style={{ padding: "8px" }} className="muted">{a.created_at ? new Date(a.created_at).toLocaleString() : "—"}</td>
-                  <td style={{ padding: "8px", textAlign: "right" }}><DeleteBtn a={a} /></td>
+                  <td style={{ padding: "8px", textAlign: "right" }}>
+                    <button className="btn" style={{ marginRight: 6, padding: "4px 8px", fontSize: "11px" }} onClick={() => setEditAgent(a)}>Edit</button>
+                    <DeleteBtn a={a} />
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -138,7 +142,10 @@ export default function Onboarding() {
                       <span className="status"><span className={"dot " + (live === "online" ? "dot-green" : "dot-red")} />{live}</span>
                     </td>
                     <td style={{ padding: "8px" }} className="muted">{a.last_seen ? new Date(a.last_seen).toLocaleString() : "—"}</td>
-                    <td style={{ padding: "8px", textAlign: "right" }}><DeleteBtn a={a} /></td>
+                    <td style={{ padding: "8px", textAlign: "right" }}>
+                      <button className="btn" style={{ marginRight: 6, padding: "4px 8px", fontSize: "11px" }} onClick={() => setEditAgent(a)}>Edit</button>
+                      <DeleteBtn a={a} />
+                    </td>
                   </tr>
                 );
               })}
@@ -149,6 +156,7 @@ export default function Onboarding() {
 
       {adding && <AddAgentModal mode="add" onClose={() => setAdding(false)} onSaved={load} />}
       {onboardAgent && <AddAgentModal mode="onboard" agent={onboardAgent} onClose={() => setOnboardAgent(null)} onSaved={load} />}
+      {editAgent && <AddAgentModal mode="edit" agent={editAgent} onClose={() => setEditAgent(null)} onSaved={load} />}
     </>
   );
 }
