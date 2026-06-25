@@ -29,13 +29,13 @@ export default function Layout({ children }: { children: ReactNode }) {
   return (
     <div className="shell">
       <aside className="sidebar">
-        <div className="brand">
+        <Link href="/" className="brand" style={{ cursor: "pointer" }}>
           <div className="logo">◇</div>
           <div>
             <div className="name">{APP_NAME}</div>
             <div className="sub">{APP_TAGLINE}</div>
           </div>
-        </div>
+        </Link>
         {NAV.map((grp) => (
           <div key={grp.section}>
             <div className="nav-section">{grp.section}</div>
