@@ -26,7 +26,6 @@ COPY --from=builder /app/package.json ./package.json
 
 # Copy Next.js build output and configuration
 COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/public ./public
 COPY --from=builder /app/scripts ./scripts
 COPY --from=builder /app/pages ./pages
 COPY --from=builder /app/components ./components
