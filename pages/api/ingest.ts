@@ -138,11 +138,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           if (!isLlm && !isTool) continue;
           let latency = 0;
           try { if (sp.startTimeUnixNano && sp.endTimeUnixNano) latency = Math.round(Number(BigInt(sp.endTimeUnixNano) - BigInt(sp.startTimeUnixNano)) / 1e6); } catch {}
-          const tokens = inTok + outTok;
-          const cost = isLlm ? (Number(pick(a, ["gen_ai.usage.cost", "llm.usage.total_cost"])) || estCost(model, inTok, outTok)) : 0;
+          const { prompt, response } = extractContent(a); // capture I/O for LLM and tool steps
+          let tokens = inTok + outTok;
+          let cost = isLlm ? (Number(pick(a, ["gen_ai.usage.cost", "llm.usage.total_cost"])) || estCost(model, inTok, outTok)) : 0;
+          // MCP tool calls carry no LLM token usage (the model runs in the host), so
+          // estimate from the tool I/O size (~4 chars/token) — approximate, not billed.
+          if (isTool && tokens === 0) {
+            const eIn = Math.ceil((prompt || "").length / 4);
+            const eOut = Math.ceil((response || "").length / 4);
+            tokens = eIn + eOut;
+            cost = +estCost(model, eIn, eOut).toFixed(6);
+          }
           if (toolName) bucket.tools.add(String(toolName));
           if (model) bucket.model = model;
-          const { prompt, response } = extractContent(a); // capture I/O for LLM and tool steps
           bucket.tokens += tokens; bucket.cost += cost; bucket.queries += 1;
           bucket.rows.push({
             task: isTool ? (toolName ? `tool:${toolName}` : (sp.name || "tool")) : (sp.name || op || "llm"),
