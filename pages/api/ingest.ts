@@ -78,7 +78,17 @@ function extractContent(a: Record<string, any>) {
 
   // LangChain chain/tool spans carry I/O here as JSON.
   if (!prompt && a["traceloop.entity.input"]) {
-    const cs = deepContents(a["traceloop.entity.input"]); if (cs.length) prompt = cs[cs.length - 1];
+    const cs = deepContents(a["traceloop.entity.input"]);
+    if (cs.length) prompt = cs[cs.length - 1];
+    else {
+      // MCP tool calls: {tool_name, arguments} — show name + args as the prompt.
+      try {
+        const o = JSON.parse(a["traceloop.entity.input"]);
+        if (o && o.arguments !== undefined) prompt = `${o.tool_name ? o.tool_name + " " : ""}${JSON.stringify(o.arguments)}`;
+        else if (typeof o === "string") prompt = o;
+        else if (o) prompt = JSON.stringify(o);
+      } catch {}
+    }
   }
   if (!response && a["traceloop.entity.output"]) {
     const cs = deepContents(a["traceloop.entity.output"]);
