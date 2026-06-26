@@ -97,8 +97,8 @@ export function buildEnrollSteps(agentName: string, baseUrl: string, token: stri
 // server with the bundled stratos-mcp-proxy so its tool calls + liveness report in.
 export function buildMcpSteps(agentName: string, baseUrl: string, token: string): EnrollStep[] {
   const config = `"${agentName}": {
-  "command": "npx",
-  "args": ["-y","-p","${SDK_PACKAGE}","stratos-mcp-proxy","--","npx","-y","<your-mcp-server>"],
+  "command": "stratos-mcp-proxy",
+  "args": ["--","npx","-y","<your-mcp-server>"],
   "env": {
     "STRATOS_TOKEN": "${token}",
     "STRATOS_URL": "${baseUrl}",
@@ -106,8 +106,9 @@ export function buildMcpSteps(agentName: string, baseUrl: string, token: string)
   }
 }`;
   return [
-    { title: "1. Add this MCP server to your host config (Claude Desktop / Cursor / VS Code / Claude Code)", lang: "json", code: config },
-    { title: "2. Replace <your-mcp-server> with the real server package/command, then restart the host", lang: "bash", code: `# e.g. ...,"--","npx","-y","@modelcontextprotocol/server-filesystem","/path"` },
+    { title: "1. Install the Stratos SDK globally (provides the stratos-mcp-proxy command)", lang: "bash", code: `npm i -g ${SDK_PACKAGE}` },
+    { title: "2. Add this MCP server to your host config (Claude Desktop / Cursor / VS Code / Claude Code)", lang: "json", code: config },
+    { title: "3. Replace <your-mcp-server> with the real server, then restart the host", lang: "bash", code: `# e.g. "args": ["--","npx","-y","@modelcontextprotocol/server-filesystem","/path"]` },
   ];
 }
 

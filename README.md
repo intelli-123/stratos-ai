@@ -49,12 +49,15 @@ change without code edits.
 
 ### Monitoring MCP servers (Claude Desktop / Cursor / VS Code)
 The **same** `@intelli-1113/stratos-sdk` package ships a `stratos-mcp-proxy` command — one install
-covers both agents and MCP. Add an agent (type `mcp`), then wrap the command in the host
-config (e.g. `claude_desktop_config.json`):
+covers both agents and MCP. Install it globally, add an agent (type `mcp`), then wrap the command in
+the host config (e.g. `claude_desktop_config.json`):
+```bash
+npm i -g @intelli-1113/stratos-sdk
+```
 ```json
 "weather": {
-  "command": "npx",
-  "args": ["-y","@intelli-1113/stratos-sdk","stratos-mcp-proxy","--","npx","-y","@scope/weather-mcp@latest"],
+  "command": "stratos-mcp-proxy",
+  "args": ["--","npx","-y","@scope/weather-mcp@latest"],
   "env": { "STRATOS_TOKEN":"<token>", "STRATOS_URL":"http://localhost:4000", "STRATOS_APP_NAME":"weather" }
 }
 ```
