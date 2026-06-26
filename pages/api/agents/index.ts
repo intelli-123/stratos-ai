@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import crypto from "crypto";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { buildEnrollSnippet, buildEnrollSteps } from "@/lib/app";
+import { buildEnrollSnippet, stepsFor, agentKind } from "@/lib/app";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
  try {
@@ -9,9 +9,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ error: "Supabase connection is not initialized. Please verify that NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY are set." });
   }
 
-  const protocol = req.headers["x-forwarded-proto"] || "http";
-  const host = req.headers.host || "localhost:4000";
-  const BASE = `${protocol}://${host}`;
+  const protocol = (req.headers["x-forwarded-proto"] as string)?.split(",")[0] || "http";
+  const host = (req.headers["x-forwarded-host"] as string) || req.headers.host;
+  const BASE = host ? `${protocol}://${host}` : (process.env.NEXT_PUBLIC_APP_BASE_URL || "http://localhost:4000");
 
   if (req.method === "GET") {
     const { data, error } = await supabaseAdmin.from("agents").select("*").order("created_at", { ascending: true });
@@ -55,7 +55,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (tErr) { console.error("[api/agents token]", tErr); return res.status(500).json({ error: tErr.message, code: tErr.code }); }
 
     const enroll_url = `${BASE}/onboard/${token}`;
-    const steps = buildEnrollSteps(agent.name, BASE, token);
+    const steps = stepsFor(agentKind(agent), agent.name, BASE, token);
 
     return res.status(201).json({ agent, enroll: { token, enroll_url, steps, snippet: buildEnrollSnippet(agent.name, BASE, token) } });
   }

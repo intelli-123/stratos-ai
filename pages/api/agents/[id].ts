@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { buildEnrollSteps, buildEnrollSnippet } from "@/lib/app";
+import { buildEnrollSnippet, stepsFor, agentKind } from "@/lib/app";
 
 const RANGES: Record<string, number> = { today: 1, "7d": 7, "30d": 30 };
 
@@ -20,9 +20,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ error: "Supabase connection is not initialized. Please verify that NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY are set." });
   }
 
-  const protocol = req.headers["x-forwarded-proto"] || "http";
-  const host = req.headers.host || "localhost:4000";
-  const BASE = `${protocol}://${host}`;
+  const protocol = (req.headers["x-forwarded-proto"] as string)?.split(",")[0] || "http";
+  const host = (req.headers["x-forwarded-host"] as string) || req.headers.host;
+  const BASE = host ? `${protocol}://${host}` : (process.env.NEXT_PUBLIC_APP_BASE_URL || "http://localhost:4000");
 
   if (req.method === "GET") {
     const range = String(req.query.range || "30d");
@@ -39,7 +39,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (tData?.token) {
         const token = tData.token;
         const enroll_url = `${BASE}/onboard/${token}`;
-        const steps = buildEnrollSteps(agent.name, BASE, token);
+        const steps = stepsFor(agentKind(agent), agent.name, BASE, token);
         enroll = {
           token,
           enroll_url,

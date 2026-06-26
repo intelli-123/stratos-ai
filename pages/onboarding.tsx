@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { Agent, APP_NAME, LIVENESS_MS, SDK_PACKAGE } from "@/lib/app";
+import { Agent, APP_NAME, LIVENESS_MS, SDK_PACKAGE, stepsFor } from "@/lib/app";
 import AddAgentModal from "@/components/AddAgentModal";
+import Snippet from "@/components/Snippet";
 
 // Onboarding hub: explains SDK enrollment, lists agents AWAITING their first
 // telemetry separately from CONNECTED ones, and allows deleting either.
@@ -12,6 +13,9 @@ export default function Onboarding() {
   const [onboardAgent, setOnboardAgent] = useState<Agent | null>(null);
   const [editAgent, setEditAgent] = useState<Agent | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [previewType, setPreviewType] = useState<"agent" | "mcp">("agent");
+  // Use the domain the dashboard is actually served from (dynamic), not a hardcode.
+  const previewBase = (typeof window !== "undefined" ? window.location.origin : "") || "http://localhost:4000";
 
   async function load() {
     try {
@@ -59,12 +63,31 @@ export default function Onboarding() {
       {err && <div className="empty" style={{ color: "var(--red)" }}>{err}</div>}
 
       <div className="card" style={{ marginBottom: 16 }}>
-        <h3 style={{ marginTop: 0 }}>How it works</h3>
-        <ol className="muted" style={{ lineHeight: 1.9, margin: 0, paddingLeft: 18 }}>
-          <li><b style={{ color: "var(--text)" }}>Add agent</b> → {APP_NAME} mints an enrollment token + connect link. The agent is <b>not</b> shown in the fleet yet.</li>
-          <li>The agent owner installs <code>{SDK_PACKAGE}</code>, sets <code>STRATOS_TOKEN</code> in their env, and runs with <code>--import {SDK_PACKAGE}/register</code>.</li>
-          <li>On its first reported trace the agent moves to <b style={{ color: "var(--green)" }}>Connected</b> with live tokens, cost, prompts and tools — and goes <b>offline</b> automatically if it stops reporting.</li>
-        </ol>
+        <div className="toolbar" style={{ marginBottom: 10 }}>
+          <h3 style={{ margin: 0 }}>How it works</h3>
+          <div className="spacer" />
+          <div className="seg">
+            <button className={previewType === "agent" ? "active" : ""} onClick={() => setPreviewType("agent")}>Agent</button>
+            <button className={previewType === "mcp" ? "active" : ""} onClick={() => setPreviewType("mcp")}>MCP</button>
+          </div>
+        </div>
+        {previewType === "agent" ? (
+          <ol className="muted" style={{ lineHeight: 1.9, margin: "0 0 12px", paddingLeft: 18 }}>
+            <li><b style={{ color: "var(--text)" }}>Add agent</b> → {APP_NAME} mints an enrollment token + connect link. The agent is <b>not</b> shown in the fleet yet.</li>
+            <li>The agent owner installs <code>{SDK_PACKAGE}</code>, sets <code>STRATOS_TOKEN</code> in their env, and runs with <code>--import {SDK_PACKAGE}/register</code>.</li>
+            <li>On its first reported trace the agent moves to <b style={{ color: "var(--green)" }}>Connected</b> with live tokens, cost, prompts and tools — and goes <b>offline</b> automatically if it stops reporting.</li>
+          </ol>
+        ) : (
+          <ol className="muted" style={{ lineHeight: 1.9, margin: "0 0 12px", paddingLeft: 18 }}>
+            <li><b style={{ color: "var(--text)" }}>Add agent</b> (type <b>mcp</b>) → {APP_NAME} mints a token.</li>
+            <li>Wrap the MCP server with <code>stratos-mcp-proxy</code> in your host config (Claude Desktop / Cursor / VS Code / Claude Code), then restart the host.</li>
+            <li>Its <b>tool calls</b> + liveness stream into {APP_NAME}. The LLM runs inside the host, so tokens/cost aren't captured.</li>
+          </ol>
+        )}
+        <div className="muted" style={{ fontSize: 12, marginBottom: 6 }}>
+          Config preview — replace the placeholders, or open a specific agent's connect link for real values:
+        </div>
+        {stepsFor(previewType, "<agent-name>", previewBase, "<token>").map((s, i) => <Snippet key={i} title={s.title} code={s.code} />)}
       </div>
 
       <div className="card" style={{ marginBottom: 16 }}>

@@ -82,7 +82,7 @@ export function liveStatus(a: Agent): "online" | "offline" | "degraded" {
 // change without code edits. Each step is rendered with its own copy button.
 export const SDK_PACKAGE = "@intelli-1113/stratos-sdk";
 
-export interface EnrollStep { title: string; lang: "bash" | "env" | "js"; code: string; }
+export interface EnrollStep { title: string; lang: "bash" | "env" | "js" | "json"; code: string; }
 
 export function buildEnrollSteps(agentName: string, baseUrl: string, token: string): EnrollStep[] {
   return [
@@ -91,6 +91,29 @@ export function buildEnrollSteps(agentName: string, baseUrl: string, token: stri
     { title: "3. Run with telemetry — zero code changes", lang: "bash", code: `node --import ${SDK_PACKAGE}/register server.js` },
     { title: "…or add one line at the very top of your entrypoint instead", lang: "js", code: `import "${SDK_PACKAGE}/register";` },
   ];
+}
+
+// MCP servers (Claude Desktop / Cursor / VS Code / Claude Code): wrap the real
+// server with the bundled stratos-mcp-proxy so its tool calls + liveness report in.
+export function buildMcpSteps(agentName: string, baseUrl: string, token: string): EnrollStep[] {
+  const config = `"${agentName}": {
+  "command": "npx",
+  "args": ["-y","-p","${SDK_PACKAGE}","stratos-mcp-proxy","--","npx","-y","<your-mcp-server>"],
+  "env": {
+    "STRATOS_TOKEN": "${token}",
+    "STRATOS_URL": "${baseUrl}",
+    "STRATOS_APP_NAME": "${agentName}"
+  }
+}`;
+  return [
+    { title: "1. Add this MCP server to your host config (Claude Desktop / Cursor / VS Code / Claude Code)", lang: "json", code: config },
+    { title: "2. Replace <your-mcp-server> with the real server package/command, then restart the host", lang: "bash", code: `# e.g. ...,"--","npx","-y","@modelcontextprotocol/server-filesystem","/path"` },
+  ];
+}
+
+// Pick the right recipe for an agent's type.
+export function stepsFor(type: AgentType, agentName: string, baseUrl: string, token: string): EnrollStep[] {
+  return type === "mcp" ? buildMcpSteps(agentName, baseUrl, token) : buildEnrollSteps(agentName, baseUrl, token);
 }
 
 // Plain-string form (CSV/back-compat) — joins the steps.
