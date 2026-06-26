@@ -1,4 +1,4 @@
-import { Agent, fmtCost, fmtNum, LIVENESS_MS, agentKind } from "@/lib/app";
+import { Agent, fmtCost, fmtNum, LIVENESS_MS, agentKind, toolStyle } from "@/lib/app";
 
 function liveStatus(a: Agent): "online" | "offline" | "degraded" {
   if (a.status === "degraded") return "degraded";
@@ -56,12 +56,13 @@ export default function AgentCard({ agent, onEdit, onOpen }: { agent: Agent; onE
         </div>
       </div>
       {tools.length > 0 && (
-        <div className="badges" style={{ marginTop: 6, gap: "4px" }}>
-          {tools.slice(0, 3).map((t) => (
-            <span key={t} className="badge" style={{ fontSize: "9px", padding: "1px 5px" }}>{t}</span>
+        <div className="badges" style={{ marginTop: 6, gap: "4px", alignItems: "center" }}>
+          <span className="l" style={{ fontSize: "9px", color: "var(--muted)", marginRight: 2 }}>tools:</span>
+          {tools.slice(0, 6).map((t) => (
+            <span key={t} className="badge" style={{ fontSize: "9px", padding: "1px 6px", ...toolStyle(t, agentKind(agent)) }}>{t}</span>
           ))}
-          {tools.length > 3 && (
-            <span className="badge" style={{ fontSize: "9px", padding: "1px 5px" }}>+{tools.length - 3}</span>
+          {tools.length > 6 && (
+            <span className="badge" style={{ fontSize: "9px", padding: "1px 5px" }} title={tools.slice(6).join(", ")}>+{tools.length - 6}</span>
           )}
         </div>
       )}

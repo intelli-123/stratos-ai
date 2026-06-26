@@ -61,6 +61,24 @@ export const FILTER_LABELS: Record<string, string> = { all: "All", agent: "Agent
 // Map legacy local/remote types onto "agent" so old data still filters/labels right.
 export const agentKind = (a: { type?: string | null }): AgentType => (a?.type === "mcp" ? "mcp" : "agent");
 
+// Deterministic per-tool color. Same tool → same hue; MCP and Agent use distinct
+// hue families so the two kinds read differently. Text stays --text (theme-safe);
+// the colour shows via translucent background + border.
+export function toolHue(name: string, type: AgentType): number {
+  let h = 0;
+  for (let i = 0; i < (name || "").length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  const base = h % 150;
+  return type === "mcp" ? 175 + base : base; // mcp: teal→violet (175–325), agent: red→green (0–150)
+}
+export function toolStyle(name: string, type: AgentType) {
+  const hue = toolHue(name, type);
+  return {
+    background: `hsl(${hue} 70% 50% / 0.16)`,
+    borderColor: `hsl(${hue} 70% 55% / 0.55)`,
+    color: "var(--text)",
+  } as const;
+}
+
 export const fmtCost = (n?: number | null) =>
   n == null ? "$0.0000" : n < 1 ? `$${n.toFixed(4)}` : `$${n.toFixed(2)}`;
 export const fmtNum = (n?: number | null) => {
