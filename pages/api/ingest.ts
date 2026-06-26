@@ -97,6 +97,27 @@ function extractContent(a: Record<string, any>) {
   }
   return { prompt: clip(prompt), response: clip(response) };
 }
+// Tool names the model requested (LangChain tool spans only expose the generic
+// class name, but the LLM's tool_calls always name the real tool).
+function extractToolCalls(a: Record<string, any>): string[] {
+  const names = new Set<string>();
+  // New semconv: gen_ai.output.messages = [{ ..., tool_calls:[{name|function.name}] }]
+  try {
+    const arr = JSON.parse(a["gen_ai.output.messages"]);
+    for (const m of Array.isArray(arr) ? arr : []) {
+      for (const tc of m?.tool_calls || []) {
+        const n = tc?.name || tc?.function?.name;
+        if (n) names.add(String(n));
+      }
+    }
+  } catch {}
+  // Legacy: gen_ai.completion.{i}.tool_calls.{j}.name / .function.name
+  for (const k of Object.keys(a)) {
+    const m = k.match(/^gen_ai\.completion\.\d+\.tool_calls\.\d+\.(?:function\.)?name$/);
+    if (m && a[k]) names.add(String(a[k]));
+  }
+  return Array.from(names);
+}
 const RATES: Record<string, [number, number]> = { // per 1k: [in, out]
   "gpt-4o": [0.005, 0.015], "gpt-4o-mini": [0.00015, 0.0006],
   "claude-sonnet-4-6": [0.003, 0.015], "claude-opus-4-8": [0.015, 0.075], default: [0.001, 0.003],
@@ -131,9 +152,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           const inTok = Number(pick(a, ["gen_ai.usage.input_tokens", "gen_ai.usage.prompt_tokens", "llm.usage.prompt_tokens", "llm.token_count.prompt"]) || 0);
           const outTok = Number(pick(a, ["gen_ai.usage.output_tokens", "gen_ai.usage.completion_tokens", "llm.usage.completion_tokens", "llm.token_count.completion"]) || 0);
           const op = String(pick(a, ["gen_ai.operation.name", "openinference.span.kind", "traceloop.span.kind"]) || "").toLowerCase();
-          // MCP tool spans (e.g. from stratos-mcp-proxy) name the tool via traceloop.entity.name.
-          const toolName = pick(a, ["gen_ai.tool.name", "tool.name", ...(op === "tool" ? ["traceloop.entity.name"] : [])]);
-          const isTool = !!toolName || op === "execute_tool" || op === "tool";
+          // Tool spans carry the tool name in traceloop.entity.name (MCP proxy and
+          // LangChain execute_tool spans both do). The span *name* is often the generic
+          // class (e.g. "DynamicStructuredTool"), so prefer the entity name.
+          const isToolKind = op === "tool" || op === "execute_tool";
+          let toolName = pick(a, ["gen_ai.tool.name", "tool.name", ...(isToolKind ? ["traceloop.entity.name"] : [])]);
+          // Ignore the generic LangChain class name — fall back to the LLM's tool_call name.
+          if (toolName === "DynamicStructuredTool" || toolName === "StructuredTool") toolName = pick(a, ["gen_ai.tool.name", "tool.name"]) || undefined;
+          const isTool = !!toolName || isToolKind;
           const isLlm = !isTool && (model || inTok || outTok || /llm|chat|completion/i.test(op) || /llm|chat|completion/i.test(sp.name || ""));
           if (!isLlm && !isTool) continue;
           let latency = 0;
@@ -150,6 +176,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             cost = +estCost(model, eIn, eOut).toFixed(6);
           }
           if (toolName) bucket.tools.add(String(toolName));
+          if (isLlm) for (const n of extractToolCalls(a)) bucket.tools.add(n); // real tool names from tool_calls
           if (model) bucket.model = model;
           bucket.tokens += tokens; bucket.cost += cost; bucket.queries += 1;
           bucket.rows.push({
