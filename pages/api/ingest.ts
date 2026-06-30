@@ -225,7 +225,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       }
 
-      const mergedTools = Array.from(new Set([...(agent.tools || []), ...b.tools]));
+      // Recompute totals AND tools from the stored rows so concurrent ingests
+      // (disableBatch sends each span separately) can't clobber each other.
+      const toolSet = new Set<string>([...(agent.tools || []), ...b.tools]);
       let totalTokens = agent.tokens || 0;
       let totalCost = agent.cost || 0;
       let totalQueries = agent.queries || 0;
@@ -233,14 +235,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (b.rows.length > 0) {
         const { data: qData } = await supabaseAdmin
           .from("agent_queries")
-          .select("tokens, cost")
+          .select("tokens, cost, task")
           .eq("agent_id", agent.id);
         if (qData) {
           totalTokens = qData.reduce((sum, r) => sum + (r.tokens || 0), 0);
           totalCost = qData.reduce((sum, r) => sum + (r.cost || 0), 0);
           totalQueries = qData.length;
+          for (const r of qData) if (typeof r.task === "string" && r.task.startsWith("tool:")) toolSet.add(r.task.slice(5));
         }
       }
+      const mergedTools = Array.from(toolSet);
 
       await supabaseAdmin.from("agents").update({
         tokens: totalTokens,
