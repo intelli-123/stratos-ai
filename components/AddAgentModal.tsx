@@ -39,12 +39,10 @@ export default function AddAgentModal(
       !f.type || 
       !f.env || 
       !f.team || 
-      f.cost_budget === null || 
-      f.cost_budget === undefined || 
-      !f.model || 
-      !f.framework
+      f.cost_budget === null ||
+      f.cost_budget === undefined
     ) {
-      setErr("All fields are mandatory.");
+      setErr("Please fill name, description, type, environment, team and budget.");
       return;
     }
     setBusy(true); setErr("");
@@ -92,9 +90,11 @@ export default function AddAgentModal(
               <div className="field" style={{ flex: 1 }}><label>Team *</label><input value={f.team || ""} onChange={(e) => set("team", e.target.value)} /></div>
               <div className="field" style={{ flex: 1 }}><label>Cost budget (USD/mo) *</label><input type="number" value={f.cost_budget ?? ""} onChange={(e) => set("cost_budget", e.target.value === "" ? null : Number(e.target.value))} /></div>
             </div>
-            <div className="row">
-              <div className="field" style={{ flex: 1 }}><label>Model *</label><input value={f.model || ""} onChange={(e) => set("model", e.target.value)} /></div>
-              <div className="field" style={{ flex: 1 }}><label>Framework *</label><input value={f.framework || ""} onChange={(e) => set("framework", e.target.value)} /></div>
+            <div className="field">
+              <label>Model &amp; Framework</label>
+              <div className="muted" style={{ fontSize: 12, padding: "6px 0" }}>
+                ✨ Auto-detected by the SDK once the agent connects — no need to enter them.
+              </div>
             </div>
             {err && <div style={{ color: "var(--red)", fontSize: 12, marginBottom: 8 }}>{err}</div>}
             <div className="row">

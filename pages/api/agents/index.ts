@@ -35,15 +35,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       !b.team ||
       b.cost_budget === null ||
       b.cost_budget === undefined ||
-      b.cost_budget === "" ||
-      !b.model ||
-      !b.framework
+      b.cost_budget === ""
     ) {
-      return res.status(400).json({ error: "All fields are mandatory" });
+      return res.status(400).json({ error: "name, description, type, env, team and cost_budget are required" });
     }
     const insert = {
       name: b.name, description: b.description, type: b.type,
-      env: b.env, team: b.team, model: b.model, framework: b.framework,
+      env: b.env, team: b.team, model: b.model || null, framework: b.framework || null,
       cost_budget: Number(b.cost_budget), status: "pending",
     };
     const { data: agent, error } = await supabaseAdmin.from("agents").insert(insert).select().single();
